@@ -102,7 +102,7 @@
       </button>
 
       <button id="selfCheckBtn" type="button" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-sky-300 font-semibold py-3 rounded-xl text-sm border border-sky-500/30 cursor-pointer">
-        🧪 Самопроверка перед встречей (около 15 секунд)
+        🧪 Самопроверка перед встречей (около 20 секунд)
       </button>
       <div id="selfCheckBox" class="hidden text-xs bg-slate-900/80 border border-slate-700 rounded-xl p-3 flex flex-col gap-2"></div>
 
@@ -337,10 +337,9 @@
     const processingSpinner = document.getElementById("processingSpinner");
     const processingStatusText = document.getElementById("processingStatusText");
 
-    // Актуальный список моделей 2026 года (gemini-3.6-flash и gemini-3-flash-preview первыми!)
+    // Модели перевода: основная gemini-3.6-flash, запасная gemini-2.5-flash
     const TRANSLATION_MODELS = [
       { name: "gemini-3.6-flash", useThinkingZero: false },
-      { name: "gemini-3-flash-preview", useThinkingZero: false },
       { name: "gemini-2.5-flash", useThinkingZero: true }
     ];
 
@@ -775,7 +774,7 @@
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: false
           }
         });
         setupPersistentMicPipeline();
@@ -1190,6 +1189,7 @@
       let peak = 0;
       const FRAME = 320;
       let activeFrames = 0;
+      let speechFrames = 0;
 
       for (let i = 0; i < pcm16.length; i++) {
         const absVal = Math.abs(pcm16[i]);
@@ -1204,18 +1204,22 @@
           const v = pcm16[i] / 32768.0;
           fSum += v * v;
         }
-        if (Math.sqrt(fSum / FRAME) > 0.0035) activeFrames++;
+        const fRms = Math.sqrt(fSum / FRAME);
+        if (fRms > 0.0035) activeFrames++;
+        if (fRms > 0.008) speechFrames++;
       }
 
       return {
         rms: Math.sqrt(sumSquares / pcm16.length),
         peak: peak / 32768.0,
-        activeFrames
+        activeFrames,
+        speechFrames
       };
     }
 
     function normalizeAudioPcm16(pcm16) {
       if (!pcm16 || pcm16.length === 0) return pcm16;
+      if (calculatePcmStats(pcm16).speechFrames < 10) return pcm16;
       let maxAbs = 0;
       for (let i = 0; i < pcm16.length; i++) {
         const a = Math.abs(pcm16[i]);
@@ -1223,7 +1227,7 @@
       }
       if (maxAbs === 0) return pcm16;
       const targetPeak = 26000;
-      const gain = Math.min(8.0, Math.max(1.0, targetPeak / maxAbs));
+      const gain = Math.min(3.0, Math.max(1.0, targetPeak / maxAbs));
       if (gain <= 1.05) return pcm16;
 
       const out = new Int16Array(pcm16.length);
@@ -1439,7 +1443,10 @@ ${glossary ? "Подсказка для написания имён и терм�
     }
 
     // ================= САМОПРОВЕРКА ПЕРЕД ВСТРЕЧЕЙ =================
+    const SELF_CHECK_MODELS = TRANSLATION_MODELS.map(m => m.name);
     const THAI_RE = /[฀-๿]/;
+
+    function selfCheckSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     async function selfCheckTextModel(modelName, key) {
       const body = {
@@ -1455,7 +1462,7 @@ ${glossary ? "Подсказка для написания имён и терм�
         if (!res.ok) {
           const ej = await res.json().catch(() => ({}));
           const m = (ej.error && ej.error.message) ? ej.error.message : "";
-          return { ok: false, msg: "HTTP " + res.status + " " + m.slice(0, 90) };
+          return { ok: false, msg: "HTTP " + res.status + " " + m.slice(0, 110) };
         }
         const data = await res.json();
         const parts = data?.candidates?.[0]?.content?.parts || [];
@@ -1488,6 +1495,36 @@ ${glossary ? "Подсказка для написания имён и терм�
       });
     }
 
+    async function selfCheckRecord(seconds) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+      });
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      try { if (ctx.state === "suspended") await ctx.resume(); } catch (e) {}
+      const src = ctx.createMediaStreamSource(stream);
+      const node = ctx.createScriptProcessor(2048, 1, 1);
+      const mute = ctx.createGain();
+      mute.gain.value = 0;
+      const chunks = [];
+      node.onaudioprocess = (e) => {
+        chunks.push(downsampleTo16k(e.inputBuffer.getChannelData(0), ctx.sampleRate));
+      };
+      src.connect(node);
+      node.connect(mute);
+      mute.connect(ctx.destination);
+      await selfCheckSleep(seconds * 1000);
+      try { node.disconnect(); mute.disconnect(); src.disconnect(); } catch (e) {}
+      stream.getTracks().forEach(tr => tr.stop());
+      try { await ctx.close(); } catch (e) {}
+      return mergeInt16Chunks(chunks);
+    }
+
+    function selfCheckDb(rms) {
+      if (!rms || rms <= 0) return -99;
+      return Math.round(20 * Math.log10(rms));
+    }
+
     async function runSelfCheck() {
       const btn = document.getElementById("selfCheckBtn");
       const box = document.getElementById("selfCheckBox");
@@ -1511,85 +1548,125 @@ ${glossary ? "Подсказка для написания имён и терм�
       }
 
       try {
+        // 1. Интернет и экран
         if (navigator.onLine) addRow("ok", "Интернет есть");
         else addRow("fail", "Нет интернета");
+        if ("wakeLock" in navigator) addRow("ok", "Экран можно держать включённым");
+        else addRow("warn", "Браузер не умеет держать экран включённым. Отключи автоблокировку в настройках телефона");
 
+        // 2. Ключ и модели перевода
         const key = (activeApiKey || apiKeyInput.value || "").trim();
         if (!key.startsWith("AIza")) {
-          addRow("fail", "Ключ Gemini не введён или неверный.");
+          addRow("fail", "Ключ Gemini не введён или неверный. Дальше проверять нечего");
           return;
         }
         activeApiKey = key;
 
-        // Проверяем первую рабочую модель из списка TRANSLATION_MODELS
-        const modelRow = addRow("run", "Проверка модели перевода (gemini-3.6-flash)...");
-        let workingModel = "";
-        let modelReply = "";
-        for (const m of TRANSLATION_MODELS) {
-          const r = await selfCheckTextModel(m.name, key);
+        let anyModelOk = false;
+        for (let i = 0; i < SELF_CHECK_MODELS.length; i++) {
+          const name = SELF_CHECK_MODELS[i];
+          const row = addRow("run", "Модель " + name + "...");
+          const r = await selfCheckTextModel(name, key);
           if (r.ok) {
-            workingModel = m.name;
-            modelReply = r.msg;
-            break;
+            anyModelOk = true;
+            setRow(row, "ok", "Модель " + name + " отвечает: " + r.msg);
+          } else {
+            setRow(row, "warn", "Модель " + name + " не ответила: " + r.msg + (i === 0 ? ". Приложение возьмёт запасную" : ". Запасная модель недоступна"));
           }
         }
-        if (workingModel) {
-          setRow(modelRow, "ok", `Модель ${workingModel} работает отлично: ${modelReply}`);
-        } else {
-          setRow(modelRow, "fail", "Модели перевода не ответили. Проверьте ключ и баланс в Google AI Studio.");
+        if (!anyModelOk) {
+          addRow("fail", "Ни одна модель перевода не работает. Проверь ключ, биллинг и лимиты в Google Cloud");
           return;
         }
 
-        const ttsRow = addRow("run", "Проверка голосовой озвучки Gemini...");
+        // 3. Озвучка
+        const ttsRow = addRow("run", "Озвучка тайского...");
         const pcm24 = await synthesizeGeminiTts("สวัสดีครับ");
         if (pcm24 && pcm24.length > 0) {
           setRow(ttsRow, "ok", "Озвучка Gemini работает (" + (pcm24.length / 24000).toFixed(1) + " сек звука)");
         } else {
-          setRow(ttsRow, "warn", "Озвучка Gemini переключилась на резервный синтезатор браузера");
+          setRow(ttsRow, "warn", "Озвучка Gemini не ответила. Приложение возьмёт голос браузера, тайский там слабее");
         }
 
-        const peerRow = addRow("run", "Проверка сервера связи телефонов...");
+        // 4. Связь телефонов
+        const peerRow = addRow("run", "Сервер связи телефонов...");
         const pr = await selfCheckPeer();
         setRow(peerRow, pr.ok ? "ok" : "fail", "Связь телефонов: " + pr.msg);
+        addRow("info", "Связь двух телефонов проверь вживую: открой гостевую ссылку на втором телефоне и переведи одну фразу");
 
-        const micRow = addRow("run", "Проверка микрофона (скажите пару слов вслух, 3 сек)...");
+        // 5. Микрофон и тишина
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          addRow("fail", "Браузер не даёт доступ к микрофону");
+          return;
+        }
+        const silRow = addRow("run", "Молчи 3 секунды, идёт запись тишины...");
+        let silPcm = null;
         try {
-          await initAudioEngine(true);
-          pttBufferedChunks = [];
-          isRecordingPTT = true;
-          await new Promise(r => setTimeout(r, 3000));
-          isRecordingPTT = false;
-          micLevelBar.style.width = "0%";
-
-          const testPcm = mergeInt16Chunks(pttBufferedChunks);
-          pttBufferedChunks = [];
-          const stats = calculatePcmStats(testPcm);
-
-          if (stats.rms < 0.001) {
-            setRow(micRow, "warn", "Микрофон включён, но вы промолчали (тишина отсекается корректно)");
+          silPcm = await selfCheckRecord(3);
+        } catch (e) {
+          setRow(silRow, "fail", "Нет доступа к микрофону: " + (e.message || e));
+          return;
+        }
+        const silStats = calculatePcmStats(silPcm);
+        const silRms = silStats.rms;
+        const silDb = selfCheckDb(silRms);
+        const gateBlocks = (silRms < 0.003 || silStats.speechFrames < 10);
+        let silText = "Шум комнаты " + silDb + " дБ. ";
+        let silStatus = silDb > -40 ? "warn" : "ok";
+        if (silDb > -40) silText += "Шумно. Найди комнату тише. ";
+        try {
+          const rs = await transcribeAndTranslateWav(encodeWavBase64(normalizeAudioPcm16(silPcm), 16000), 3.0);
+          const orig = ((rs && rs.original) || "").trim();
+          if (orig) {
+            silStatus = "fail";
+            silText += "Модель выдумала текст на тишине: " + orig.slice(0, 80);
           } else {
-            const norm = normalizeAudioPcm16(testPcm);
-            const rr = await transcribeAndTranslateWav(encodeWavBase64(norm, 16000), 3.0);
-            if (rr && rr.original) {
-              setRow(micRow, "ok", `Микрофон работает! Услышано: «${rr.original}» → «${rr.translation}»`);
-            } else {
-              setRow(micRow, "ok", "Микрофон работает, посторонний шум отфильтрован без галлюцинаций");
-            }
+            silText += gateBlocks ? "Тишина отсеивается до отправки в модель." : "Модель на тишине вернула пустой ответ.";
           }
-        } catch (micErr) {
-          setRow(
-            micRow,
-            "fail",
-            "Доступ к микрофону запрещён в браузере (Permission denied). Нажмите на значок замка/настроек слева от адреса сайта ru-tai-translation.netlify.app вверху браузера → выберите «Микрофон: Разрешить» и обновите страницу."
-          );
+        } catch (e) {
+          silStatus = "fail";
+          silText += "Ошибка проверки: " + (e.message || e);
+        }
+        setRow(silRow, silStatus, silText);
+
+        // 6. Микрофон и речь
+        const spRow = addRow("run", "Скажи по-русски: «Добрый день, рада вас видеть». Идёт запись 4 секунды...");
+        let spPcm = null;
+        try {
+          spPcm = await selfCheckRecord(4);
+        } catch (e) {
+          setRow(spRow, "fail", "Нет доступа к микрофону: " + (e.message || e));
+          return;
+        }
+        const spStats = calculatePcmStats(spPcm);
+        const spRms = spStats.rms;
+        const spFrames = spStats.speechFrames;
+        if (spRms < 0.003 || spFrames < 10) {
+          setRow(spRow, "fail", "Голос не слышен (" + selfCheckDb(spRms) + " дБ). Говори ближе и громче. Это порог, ниже которого приложение отсеивает речь");
+        } else {
+          try {
+            const rr = await transcribeAndTranslateWav(encodeWavBase64(normalizeAudioPcm16(spPcm), 16000), 4.0);
+            const o = ((rr && rr.original) || "").trim();
+            const tr = ((rr && rr.translation) || "").trim();
+            if (!o) {
+              setRow(spRow, "fail", "Голос слышен, но модель не распознала речь");
+            } else if (!THAI_RE.test(tr)) {
+              setRow(spRow, "warn", "Услышано: «" + o.slice(0, 80) + "». Тайского перевода нет");
+            } else {
+              setRow(spRow, "ok", "Услышано: «" + o.slice(0, 80) + "». Перевод: " + tr.slice(0, 80) + ". Сверь с тем, что ты сказал");
+            }
+          } catch (e) {
+            setRow(spRow, "fail", "Ошибка проверки речи: " + (e.message || e));
+          }
         }
       } catch (e) {
         addRow("fail", "Сбой самопроверки: " + (e.message || e));
       } finally {
         const sum = document.createElement("div");
         sum.className = "mt-1 pt-2 border-t border-slate-700 font-semibold";
-        if (counts.fail > 0) sum.textContent = "Итог: разрешите микрофон в адресной строке браузера (значок замка слева от адреса)";
-        else sum.textContent = "Итог: всё полностью готово к встрече!";
+        if (counts.fail > 0) sum.textContent = "Итог: есть ошибки (" + counts.fail + "). Исправь их до встречи";
+        else if (counts.warn > 0) sum.textContent = "Итог: работает, есть замечания (" + counts.warn + ")";
+        else sum.textContent = "Итог: всё готово";
         box.appendChild(sum);
         btn.disabled = false;
         btn.classList.remove("opacity-60");
@@ -1604,7 +1681,7 @@ ${glossary ? "Подсказка для написания имён и терм�
       const durationSec = fullPcm16.length / 16000;
       const stats = calculatePcmStats(fullPcm16);
 
-      if (stats.rms < 0.0012 || (stats.activeFrames < 3 && stats.peak < 0.015)) {
+      if (stats.rms < 0.003 || stats.speechFrames < 10) {
         setBottomStatus(
           "warn",
           "⚠️ Речь не опознана (слишком тихо). Пожалуйста, повторите ещё раз (เสียงเบาเกินไป กรุณาพูดใหม่อีกครั้ง)",
