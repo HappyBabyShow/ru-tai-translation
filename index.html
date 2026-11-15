@@ -308,6 +308,8 @@
 
     let micStream = null;
     let micSourceNode = null;
+    let micRecGain = null;
+    let pttReleaseIdx = -1;
     let scriptNode = null;
     let muteGainNode = null;
     let nextPlayTime = 0;
@@ -782,17 +784,65 @@
       requestScreenWakeLock();
     }
 
+    function setMicRecording(on) {
+      if (!audioCtx || !micRecGain) return;
+      try {
+        const g = micRecGain.gain;
+        const now = audioCtx.currentTime;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value, now);
+        g.linearRampToValueAtTime(on ? 1 : 0, now + 0.02);
+      } catch (e) {}
+    }
+
+    // Обрезает широкополосный щелчок (полная громкость, шумовой спектр) после отпускания кнопки
+    function trimTailBurst(pcm, releaseIdx) {
+      if (!pcm || releaseIdx < 0) return pcm;
+      const FRAME = 320;
+      const from = Math.max(0, releaseIdx - 1600);
+      for (let s = from; s + FRAME <= pcm.length; s += FRAME) {
+        let peak = 0, e = 0, d = 0;
+        for (let i = s; i < s + FRAME; i++) {
+          const v = pcm[i];
+          const a = Math.abs(v);
+          if (a > peak) peak = a;
+          e += v * v;
+          if (i > s) { const df = v - pcm[i - 1]; d += df * df; }
+        }
+        if (peak >= 29000 && e > 0 && d / e > 0.35) return pcm.slice(0, s);
+      }
+      return pcm;
+    }
+
+    // Плавное начало и конец озвучки, чтобы не было щелчков
+    function fadeEdges(int16) {
+      const out = new Int16Array(int16);
+      const n = Math.min(240, Math.floor(out.length / 4));
+      for (let i = 0; i < n; i++) {
+        const k = i / n;
+        out[i] = Math.round(out[i] * k);
+        out[out.length - 1 - i] = Math.round(out[out.length - 1 - i] * k);
+      }
+      return out;
+    }
+
     function setupPersistentMicPipeline() {
       if (!audioCtx || !micStream) return;
       try {
         if (scriptNode) scriptNode.disconnect();
         if (muteGainNode) muteGainNode.disconnect();
         if (micSourceNode) micSourceNode.disconnect();
+        if (micRecGain) micRecGain.disconnect();
       } catch (e) {}
 
       micSourceNode = audioCtx.createMediaStreamSource(micStream);
+      micRecGain = null;
       if (role === "host" && mixerDest) {
-        micSourceNode.connect(mixerDest);
+        // Микрофон попадает в запись встречи только пока удерживается кнопка
+        micRecGain = audioCtx.createGain();
+        micRecGain.gain.value = isRecordingPTT ? 1 : 0;
+        micSourceNode.connect(micRecGain);
+        micRecGain.connect(mixerDest);
       }
 
       scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
@@ -1423,7 +1473,7 @@ ${glossary ? "Подсказка для написания имён и терм�
           const parts = data?.candidates?.[0]?.content?.parts || [];
           for (const p of parts) {
             if (p.inlineData && p.inlineData.data) {
-              return base64ToInt16(p.inlineData.data);
+              return fadeEdges(base64ToInt16(p.inlineData.data));
             }
           }
         } catch (e) {}
@@ -1817,10 +1867,20 @@ ${glossary ? "Подсказка для написания имён и терм�
     // ================= ЗАХВАТ РЕЧИ ПРИ УДЕРЖАНИИ КНОПКИ =================
     function stopCurrentPlayback() {
       for (const src of activeOutputSources) {
-        try { src.stop(); } catch (e) {}
+        try {
+          const t0 = audioCtx.currentTime;
+          if (src._outGain) {
+            src._outGain.gain.cancelScheduledValues(t0);
+            src._outGain.gain.setValueAtTime(src._outGain.gain.value, t0);
+            src._outGain.gain.linearRampToValueAtTime(0, t0 + 0.02);
+            src.stop(t0 + 0.03);
+          } else {
+            src.stop();
+          }
+        } catch (e) {}
       }
       activeOutputSources = [];
-      if (typeof speechSynthesis !== "undefined") {
+      if (typeof speechSynthesis !== "undefined" && (speechSynthesis.speaking || speechSynthesis.pending)) {
         try { speechSynthesis.cancel(); } catch (e) {}
       }
       if (audioCtx) {
@@ -1855,6 +1915,8 @@ ${glossary ? "Подсказка для написания имён и терм�
     async function startSpeaking() {
       if (meetingStopped) return;
       clearTimeout(releaseTailTimer);
+      pttReleaseIdx = -1;
+      setMicRecording(true);
       if (isRecordingPTT) return;
 
       try {
@@ -1864,6 +1926,7 @@ ${glossary ? "Подсказка для написания имён и терм�
 
         pttBufferedChunks = [];
         isRecordingPTT = true;
+        setMicRecording(true);
         pttStartTimestamp = Date.now();
 
         pttBtn.classList.add("ptt-active");
@@ -1896,13 +1959,16 @@ ${glossary ? "Подсказка для написания имён и терм�
       if (!isRecordingPTT) return;
       clearInterval(pttTimerInterval);
       resetPttButtonAppearance();
+      setMicRecording(false);
+      if (pttReleaseIdx < 0) pttReleaseIdx = pttBufferedChunks.reduce((s, c) => s + c.length, 0);
 
       clearTimeout(releaseTailTimer);
       releaseTailTimer = setTimeout(() => {
         isRecordingPTT = false;
         micLevelBar.style.width = "0%";
 
-        const fullUtterance = mergeInt16Chunks(pttBufferedChunks);
+        const fullUtterance = trimTailBurst(mergeInt16Chunks(pttBufferedChunks), pttReleaseIdx);
+        pttReleaseIdx = -1;
         pttBufferedChunks = [];
 
         if (fullUtterance.length < 2400) {
@@ -1994,8 +2060,11 @@ ${glossary ? "Подсказка для написания имён и терм�
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuf;
 
-      if (playToLocalHeadphones) source.connect(audioCtx.destination);
-      if (mixerDest) source.connect(mixerDest);
+      const outGain = audioCtx.createGain();
+      source.connect(outGain);
+      if (playToLocalHeadphones) outGain.connect(audioCtx.destination);
+      if (mixerDest) outGain.connect(mixerDest);
+      source._outGain = outGain;
 
       activeOutputSources.push(source);
       source.onended = () => {
