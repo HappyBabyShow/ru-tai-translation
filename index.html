@@ -986,6 +986,15 @@
         resumeAudioBanner.classList.remove("hidden");
       }
 
+      // Фоновый предпрогрев TTS-кэша: частые фразы играют мгновенно на встрече
+      if (!isRestoredSession && activeApiKey) {
+        const warmPhrases = [
+          "สวัสดีครับ", "ขอบคุณครับ", "ได้ครับ", "ไม่เป็นไรครับ",
+          "โอเคครับ", "ยินดีที่ได้รู้จักครับ", "กรุณาพูดใหม่อีกครั้ง"
+        ];
+        for (const p of warmPhrases) { synthesizeGeminiTts(p).catch(() => {}); }
+      }
+
       initHostPeer(roomId);
       connBadge.textContent = "🟢 Переводчик готов";
       connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
@@ -1248,6 +1257,68 @@
       }
     });
 
+    // ================= ШУМОВОЙ ГЕЙТ И ОБРЕЗКА ТИШИНЫ =================
+    // Гистерезис: открытие на 0.0045 RMS, закрытие на 0.0025 (не рвёт концы слов).
+    // Тихие участки внутри реплики приглушаются до -15 дБ, а не обнуляются.
+    function noiseGatePcm16(pcm16, opts = {}) {
+      if (!pcm16 || pcm16.length === 0) return pcm16;
+      const FRAME = 320; // 20 мс при 16 кГц
+      const OPEN_THRESH = opts.openThresh || 0.006;
+      const CLOSE_THRESH = opts.closeThresh || 0.0035;
+      const HANGOVER_FRAMES = 8; // 160 мс держим гейт открытым после речи
+      const PAD_FRAMES = 3;      // 60 мс тишины оставляем по краям
+
+      const nFrames = Math.floor(pcm16.length / FRAME);
+      if (nFrames === 0) return pcm16;
+
+      const frameRms = new Float32Array(nFrames);
+      for (let f = 0; f < nFrames; f++) {
+        let s = 0;
+        const off = f * FRAME;
+        for (let i = 0; i < FRAME; i++) { const v = pcm16[off + i] / 32768.0; s += v * v; }
+        frameRms[f] = Math.sqrt(s / FRAME);
+      }
+
+      // Адаптация к фону: медианный RMS по фреймам = уровень шума реплики.
+      // Речь — это фреймы заметно выше своего окружения.
+      const sortedRms = Array.from(frameRms).sort((a, b) => a - b);
+      const noiseFloor = sortedRms[Math.floor(nFrames * 0.25)]; // 25-й перцентиль: устойчиво и при преобладании речи, и при преобладании тишины
+      const openTh = Math.max(OPEN_THRESH, noiseFloor * 2.5);
+      const closeTh = Math.max(CLOSE_THRESH, noiseFloor * 1.6);
+
+      const isSpeech = new Uint8Array(nFrames);
+      let gateOpen = false;
+      let hang = 0;
+      for (let f = 0; f < nFrames; f++) {
+        const r = frameRms[f];
+        if (!gateOpen && r >= openTh) gateOpen = true;
+        if (gateOpen) {
+          if (r >= closeTh) { isSpeech[f] = 1; hang = HANGOVER_FRAMES; }
+          else if (hang > 0) { isSpeech[f] = 1; hang--; }
+          else gateOpen = false;
+        }
+      }
+
+      let first = -1, last = -1;
+      for (let f = 0; f < nFrames; f++) if (isSpeech[f]) { first = f; break; }
+      for (let f = nFrames - 1; f >= 0; f--) if (isSpeech[f]) { last = f; break; }
+      if (first < 0) return new Int16Array(0); // чистая тишина
+      first = Math.max(0, first - PAD_FRAMES);
+      last = Math.min(nFrames - 1, last + PAD_FRAMES);
+
+      const out = new Int16Array((last - first + 1) * FRAME);
+      let dst = 0;
+      for (let f = first; f <= last; f++) {
+        const off = f * FRAME;
+        const att = isSpeech[f] ? 1.0 : 0.18;
+        for (let i = 0; i < FRAME; i++) {
+          const v = pcm16[off + i] * att;
+          out[dst++] = Math.max(-32768, Math.min(32767, Math.round(v)));
+        }
+      }
+      return out;
+    }
+
     // ================= АНАЛИЗ ГРОМКОСТИ И АВТОУСИЛЕНИЕ ТИХОЙ РЕЧИ =================
     function calculatePcmStats(pcm16) {
       if (!pcm16 || pcm16.length === 0) return { rms: 0, peak: 0, activeFrames: 0 };
@@ -1464,7 +1535,21 @@ ${glossary ? "Подсказка для написания имён и терм�
       throw new Error(lastErr);
     }
 
+    // Кэш синтезированной речи: повторы играют мгновенно, без запроса к API
+    const ttsCache = new Map();
+    const TTS_CACHE_MAX = 80;
     async function synthesizeGeminiTts(textToSpeak) {
+      const cacheKey = textToSpeak;
+      if (ttsCache.has(cacheKey)) return ttsCache.get(cacheKey);
+      const __pcm = await __synthesizeGeminiTtsUncached(textToSpeak);
+      if (__pcm && __pcm.length > 0) {
+        if (ttsCache.size >= TTS_CACHE_MAX) ttsCache.delete(ttsCache.keys().next().value);
+        ttsCache.set(cacheKey, __pcm);
+      }
+      return __pcm;
+    }
+
+    async function __synthesizeGeminiTtsUncached(textToSpeak) {
       for (const ttsModel of TTS_MODELS) {
         try {
           const res = await fetch(
@@ -1787,10 +1872,30 @@ ${glossary ? "Подсказка для написания имён и терм�
       connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300";
 
       try {
+        // Шумовой гейт: обрезаем тишину по краям и приглушаем фон
+        const gatedPcm = noiseGatePcm16(fullPcm16);
+        if (gatedPcm.length < 2400) {
+          setBottomStatus(
+            "warn",
+            "⚠️ Речь не опознана (одна тишина после фильтра шума). Повторите, пожалуйста (พูดใหม่อีกครั้ง)",
+            true,
+            4500
+          );
+          connBadge.textContent = "⚠️ Речь не опознана";
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+          setTimeout(() => {
+            if (!isTranslatingTurn && !meetingStopped) {
+              connBadge.textContent = "🟢 Переводчик готов";
+              connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+            }
+          }, 3500);
+          return;
+        }
         // Автоусиление тихой речи перед отправкой
-        const normalizedPcm = normalizeAudioPcm16(fullPcm16);
+        const normalizedPcm = normalizeAudioPcm16(gatedPcm);
         const wavB64 = encodeWavBase64(normalizedPcm, 16000);
-        const result = await transcribeAndTranslateWav(wavB64, durationSec);
+        const gatedDurationSec = gatedPcm.length / 16000;
+        const result = await transcribeAndTranslateWav(wavB64, gatedDurationSec);
 
         if (myTurnId !== activeTurnId || meetingStopped) return;
 
