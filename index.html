@@ -157,6 +157,13 @@
             </button>
           </div>
 
+          <button id="speakerModeBtn" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500">
+            🔊 Громкая связь (без наушников): ВЫКЛ
+          </button>
+          <div id="speakerModeHint" class="hidden text-[11px] text-amber-300/90 leading-relaxed">
+            📢 Телефоны держите в <b>1–2 метрах друг от друга</b> на столе, экраном вверх. Говорите в сторону своего телефона. Если второй собеседник зажал кнопку — перевод на вашем телефоне прервётся: это защита от эха, так и должно быть.
+          </div>
+
           <div id="modeInstructionBox" class="bg-slate-950/75 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 leading-relaxed">
             <div class="font-semibold text-emerald-400 mb-1">Как использовать (2 телефона и наушники):</div>
             <ol class="list-decimal list-inside space-y-1 text-slate-300">
@@ -274,6 +281,7 @@
     let currentRoomId = "";
     let meetingStopped = false;
     let singlePhoneMode = false;
+    let speakerMode = false; // громкая связь: усиление динамика + защита от эха
     let isTranslatingTurn = false;
     let activeTurnId = 0;
 
@@ -555,6 +563,22 @@
 
     document.getElementById("modeTwoPhonesBtn").addEventListener("click", () => setTranslationMode(false));
     document.getElementById("modeOnePhoneBtn").addEventListener("click", () => setTranslationMode(true));
+
+    // ================= РЕЖИМ ГРОМКОЙ СВЯЗИ (БЕЗ НАУШНИКОВ) =================
+    document.getElementById("speakerModeBtn").addEventListener("click", () => {
+      speakerMode = !speakerMode;
+      const btn = document.getElementById("speakerModeBtn");
+      const hint = document.getElementById("speakerModeHint");
+      if (speakerMode) {
+        btn.className = "w-full py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20";
+        btn.textContent = "🔊 Громкая связь (без наушников): ВКЛ";
+        hint.classList.remove("hidden");
+      } else {
+        btn.className = "w-full py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500";
+        btn.textContent = "🔊 Громкая связь (без наушников): ВЫКЛ";
+        hint.classList.add("hidden");
+      }
+    });
 
     // ================= ИНИЦИАЛИЗАЦИЯ API-КЛЮЧА И СТАРТОВОГО ЭКРАНА =================
     async function bootstrapApp() {
@@ -2189,6 +2213,8 @@ ${glossary ? "Подсказка для написания имён и терм�
       source.buffer = audioBuf;
 
       const outGain = audioCtx.createGain();
+      // Громкая связь: +50% громкости в динамик (сигнал TTS без клиппинга, запас есть)
+      outGain.gain.value = (speakerMode && playToLocalHeadphones) ? 1.5 : 1.0;
       source.connect(outGain);
       if (playToLocalHeadphones) outGain.connect(audioCtx.destination);
       if (mixerDest) outGain.connect(mixerDest);
