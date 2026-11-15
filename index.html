@@ -1476,6 +1476,10 @@ ${glossary ? "Подсказка для написания имён и терм�
                 contents: [{ parts: [{ text: textToSpeak }] }],
                 generationConfig: {
                   responseModalities: ["AUDIO"],
+                  // Просим raw PCM L16, чтобы не разбирать WAV-контейнер в обычном пути.
+                  responseFormat: {
+                    audio: { mimeType: "AUDIO_L16", sampleRate: 24000 }
+                  },
                   speechConfig: {
                     voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
                   }
@@ -1489,7 +1493,10 @@ ${glossary ? "Подсказка для написания имён и терм�
           const parts = data?.candidates?.[0]?.content?.parts || [];
           for (const p of parts) {
             if (p.inlineData && p.inlineData.data) {
-              return fadeEdges(base64ToInt16(p.inlineData.data));
+              // MIME важен: Gemini 3.8 может вернуть WAV-контейнер с RIFF-заголовком
+              // и дополнительными чанками в конце. Их нельзя интерпретировать как PCM.
+              const pcm = base64ToInt16(p.inlineData.data, p.inlineData.mimeType || "");
+              if (pcm && pcm.length > 0) return fadeEdges(pcm);
             }
           }
         } catch (e) {}
@@ -2111,11 +2118,84 @@ ${glossary ? "Подсказка для написания имён и терм�
       nextGuestMixTime += audioBuf.duration;
     }
 
-    function base64ToInt16(b64) {
+    function base64ToInt16(b64, mimeType = "") {
       const binary = atob(b64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return new Int16Array(bytes.buffer);
+
+      const readTag = (offset) =>
+        String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+
+      const looksLikeWav =
+        /audio\\/(wav|x-wav)/i.test(mimeType) ||
+        (bytes.length >= 12 && readTag(0) === "RIFF" && readTag(8) === "WAVE");
+
+      if (!looksLikeWav) {
+        // audio/L16: headerless signed 16-bit little-endian PCM.
+        if (bytes.length < 2 || bytes.length % 2 !== 0) {
+          throw new Error("Некорректный размер PCM-аудио");
+        }
+        return new Int16Array(bytes.buffer);
+      }
+
+      // Читаем WAV по RIFF-чанкам и забираем ТОЛЬКО data.
+      // Это исключает RIFF-заголовок и любые метаданные после аудио.
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      let formatCode = 0;
+      let channels = 0;
+      let sampleRate = 0;
+      let bitsPerSample = 0;
+      let dataOffset = -1;
+      let dataLength = 0;
+
+      for (let offset = 12; offset + 8 <= view.byteLength;) {
+        const chunkId = readTag(offset);
+        const chunkSize = view.getUint32(offset + 4, true);
+        const chunkStart = offset + 8;
+        const chunkEnd = chunkStart + chunkSize;
+        if (chunkEnd > view.byteLength) break;
+
+        if (chunkId === "fmt " && chunkSize >= 16) {
+          formatCode = view.getUint16(chunkStart, true);
+          channels = view.getUint16(chunkStart + 2, true);
+          sampleRate = view.getUint32(chunkStart + 4, true);
+          bitsPerSample = view.getUint16(chunkStart + 14, true);
+
+          // WAVE_FORMAT_EXTENSIBLE: первые 2 байта SubFormat содержат исходный формат.
+          if (formatCode === 0xFFFE && chunkSize >= 40) {
+            formatCode = view.getUint16(chunkStart + 24, true);
+          }
+        } else if (chunkId === "data" && dataOffset < 0) {
+          dataOffset = chunkStart;
+          dataLength = chunkSize;
+        }
+
+        offset = chunkEnd + (chunkSize & 1);
+      }
+
+      if (dataOffset < 0 || formatCode !== 1 || bitsPerSample !== 16 || channels < 1) {
+        throw new Error("Gemini вернул неподдерживаемый WAV-формат");
+      }
+      if (sampleRate !== 24000) {
+        throw new Error("Ожидалось 24 кГц, получено " + sampleRate + " Гц");
+      }
+
+      const usableBytes = dataLength - (dataLength % (2 * channels));
+      const sampleCount = usableBytes / 2;
+      const source = new Int16Array(
+        bytes.buffer.slice(bytes.byteOffset + dataOffset, bytes.byteOffset + dataOffset + usableBytes)
+      );
+
+      if (channels === 1) return source;
+
+      // На случай многоканального WAV сводим каналы в mono.
+      const mono = new Int16Array(sampleCount / channels);
+      for (let i = 0; i < mono.length; i++) {
+        let sum = 0;
+        for (let ch = 0; ch < channels; ch++) sum += source[i * channels + ch];
+        mono[i] = Math.max(-32768, Math.min(32767, Math.round(sum / channels)));
+      }
+      return mono;
     }
 
     // ================= ПРОТОКОЛ И ЭКСПОРТ =================
