@@ -795,22 +795,36 @@
       } catch (e) {}
     }
 
-    // Обрезает широкополосный щелчок (полная громкость, шумовой спектр) после отпускания кнопки
+    // Обрезает щелчок после отпускания кнопки: полная громкость, шумовой спектр, минимум 6 кадров по 10 мс
     function trimTailBurst(pcm, releaseIdx) {
       if (!pcm || releaseIdx < 0) return pcm;
-      const FRAME = 320;
+      const FRAME = 160;
+      const NEED = 6;
       const from = Math.max(0, releaseIdx - 1600);
+      let run = 0;
+      let miss = 0;
+      let runStart = -1;
       for (let s = from; s + FRAME <= pcm.length; s += FRAME) {
         let peak = 0, e = 0, d = 0;
         for (let i = s; i < s + FRAME; i++) {
           const v = pcm[i];
-          const a = Math.abs(v);
-          if (a > peak) peak = a;
+          const av = Math.abs(v);
+          if (av > peak) peak = av;
           e += v * v;
           if (i > s) { const df = v - pcm[i - 1]; d += df * df; }
         }
-        if (peak >= 29000 && e > 0 && d / e > 0.35) return pcm.slice(0, s);
+        if (peak >= 22000 && e > 0 && d / e > 0.3) {
+          if (run === 0) runStart = s;
+          run++;
+          miss = 0;
+          if (run >= NEED) return pcm.slice(0, Math.max(0, runStart - FRAME));
+        } else if (run > 0) {
+          // в щелчке бывают короткие провалы
+          miss++;
+          if (miss >= 3) { run = 0; miss = 0; }
+        }
       }
+      if (run >= 4) return pcm.slice(0, Math.max(0, runStart - FRAME));
       return pcm;
     }
 
@@ -1054,11 +1068,13 @@
           if (data.type === "GUEST_AUDIO_CHUNK") {
             const pcm16 = new Int16Array(data.pcm);
             guestIncomingChunks.push(pcm16);
-            playIncomingGuestToMixer(pcm16);
           } else if (data.type === "GUEST_AUDIO_COMMIT") {
-            const fullGuestPcm = mergeInt16Chunks(guestIncomingChunks);
+            const rawGuestPcm = mergeInt16Chunks(guestIncomingChunks);
             guestIncomingChunks = [];
+            // Если у гостя старая версия страницы, щелчок в конце его записи вырезаем на хосте (ищем в последней секунде)
+            const fullGuestPcm = trimTailBurst(rawGuestPcm, Math.max(0, rawGuestPcm.length - 14400));
             if (fullGuestPcm.length > 0) {
+              playIncomingGuestToMixer(fullGuestPcm);
               processCompleteTurn(fullGuestPcm, "guest");
             } else {
               setBottomStatus(
@@ -2080,6 +2096,7 @@ ${glossary ? "Подсказка для написания имён и терм�
 
     function playIncomingGuestToMixer(int16Arr) {
       if (!audioCtx || !mixerDest) return;
+      int16Arr = fadeEdges(int16Arr);
       const float32 = new Float32Array(int16Arr.length);
       for (let i = 0; i < int16Arr.length; i++) float32[i] = int16Arr[i] / 32768.0;
       const audioBuf = audioCtx.createBuffer(1, float32.length, 16000);
