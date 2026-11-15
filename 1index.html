@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RuTai Translated</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    body {
+      background-color: #090d16;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+    }
+    .ptt-btn {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.15s ease;
+    }
+    .ptt-btn:active, .ptt-active {
+      transform: scale(0.97);
+      box-shadow: 0 0 42px rgba(244, 63, 94, 0.7);
+    }
+    .glass {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <header class="border-b border-slate-800/80 px-4 py-3 flex items-center justify-between gap-2">
+    <div id="brandHeader" class="flex items-center gap-2 shrink-0 select-none cursor-pointer">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="font-semibold tracking-tight text-sm sm:text-base text-emerald-400">
+        RuTai Translated
+      </span>
+    </div>
+    <div id="connBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 truncate max-w-[235px]">
+      Готов к встрече
+    </div>
+  </header>
+
+  <main class="max-w-2xl w-full mx-auto px-4 py-5 flex-1 flex flex-col gap-4">
+
+    <!-- ЭКРАН 1: СТАРТОВЫЙ ЭКРАН -->
+    <section id="setupScreen" class="glass rounded-2xl p-6 flex flex-col gap-5">
+      <div>
+        <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">
+          Деловые переговоры • Конфиденциально
+        </span>
+        <h1 class="text-xl sm:text-2xl font-bold mt-1">
+          Персональный синхронный переводчик
+        </h1>
+        <p class="text-slate-400 text-sm mt-1.5 leading-relaxed">
+          Нажмите кнопку ниже, чтобы открыть кабинет встречи. Внутри можно выбрать перевод с <b>двух телефонов и наушников</b> (основной режим) или <b>с одного телефона</b> по громкой связи.
+        </p>
+      </div>
+
+      <!-- АДМИН-БЛОК КЛЮЧА -->
+      <div id="apiKeyFieldWrapper" class="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs text-slate-300 font-medium">
+            🔑 Gemini API Key <span class="text-slate-500">(вводится один раз)</span>
+          </label>
+          <button id="hideAdminPanelBtn" type="button" class="hidden text-[11px] text-slate-400 hover:text-slate-200 cursor-pointer">
+            Скрыть ✕
+          </button>
+        </div>
+        <input id="apiKeyInput" type="password" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500" />
+        <button id="copyClientMagicLinkBtn" type="button" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-lg border border-emerald-500/30 cursor-pointer">
+          🔒 Создать и скопировать скрытую ссылку для заказчицы
+        </button>
+        <div id="magicLinkPreview" class="hidden text-[11px] text-slate-400 break-all bg-slate-950/80 p-2 rounded-lg border border-slate-800"></div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1.5">
+          Контекст и ключевые слова встречи <span class="text-slate-500">(необязательно)</span>
+        </label>
+        <textarea id="glossaryInput" rows="2" placeholder="Например: Имена участников, названия компаний, условия договора, суммы в батах..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1.5">Стиль речи при переводе на тайский</label>
+        <select id="styleSelect" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="business">Деловой (вежливый официальный)</option>
+          <option value="professional">Профессиональный (точный с терминами)</option>
+          <option value="friendly">Дружеский (естественный разговорный)</option>
+          <option value="simple">Простой (короткие понятные фразы)</option>
+        </select>
+      </div>
+
+      <button id="startHostBtn" type="button" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold py-4 rounded-xl text-sm sm:text-base shadow-lg shadow-emerald-500/20 cursor-pointer">
+        Начать встречу
+      </button>
+
+      <button id="selfCheckBtn" type="button" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-sky-300 font-semibold py-3 rounded-xl text-sm border border-sky-500/30 cursor-pointer">
+        🧪 Самопроверка перед встречей (около 15 секунд)
+      </button>
+      <div id="selfCheckBox" class="hidden text-xs bg-slate-900/80 border border-slate-700 rounded-xl p-3 flex flex-col gap-2"></div>
+
+      <div id="setupErrorBox" class="hidden text-xs bg-rose-500/15 border border-rose-500/40 text-rose-200 rounded-xl p-3"></div>
+    </section>
+
+    <!-- ЭКРАН 2: АКТИВНЫЙ КАБИНЕТ ПЕРЕВОДА -->
+    <section id="roomScreen" class="hidden flex-col gap-4">
+
+      <!-- ОВЕРЛЕЙ ВХОДА И РАЗБЛОКИРОВКИ ЗВУКА И МИКРОФОНА ДЛЯ ВТОРОГО ТЕЛЕФОНА -->
+      <div id="guestEntryOverlay" class="hidden glass border-emerald-500/50 rounded-2xl p-6 flex flex-col items-center text-center gap-4">
+        <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl">
+          🎙
+        </div>
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-slate-100">
+            Подключиться к встрече
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed">
+            Нажмите кнопку ниже один раз, чтобы сразу включить микрофон и громкий звук переводчика.<br/>
+            <span class="text-emerald-400 font-medium">(แตะปุ่มด้านล่างเพื่อเปิดไมโครโฟนและเสียงแปลภาษา)</span>
+          </p>
+        </div>
+        <button id="joinMeetingGuestBtn" type="button" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-extrabold py-4 rounded-xl text-base shadow-lg shadow-emerald-500/25 cursor-pointer">
+          🔊 Подключиться и включить микрофон (เริ่มใช้งาน)
+        </button>
+        <div id="guestMicErrorBox" class="hidden text-xs bg-rose-500/15 border border-rose-500/40 text-rose-200 rounded-xl p-3 text-left w-full"></div>
+      </div>
+
+      <!-- ОСНОВНОЙ КОНТЕНТ КАБИНЕТА -->
+      <div id="activeRoomBody" class="flex flex-col gap-4">
+
+        <button id="resumeAudioBanner" type="button" class="hidden w-full bg-amber-500/20 border border-amber-400/50 text-amber-200 text-xs font-semibold py-3 px-4 rounded-xl text-center cursor-pointer animate-pulse">
+          🔊 Нажмите сюда, чтобы включить звук и микрофон после возврата во вкладку
+        </button>
+
+        <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ И МИНИ-ИНСТРУКЦИЯ -->
+        <div id="modePanel" class="glass rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Режим работы на встрече
+            </span>
+            <span id="roomCodeBadge" class="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono"></span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="modeTwoPhonesBtn" type="button" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20">
+              📱📱 2 телефона + наушники
+            </button>
+            <button id="modeOnePhoneBtn" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500">
+              📱 1 телефон
+            </button>
+          </div>
+
+          <div id="modeInstructionBox" class="bg-slate-950/75 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 leading-relaxed">
+            <div class="font-semibold text-emerald-400 mb-1">Как использовать (2 телефона и наушники):</div>
+            <ol class="list-decimal list-inside space-y-1 text-slate-300">
+              <li>Этот телефон показывает <b>QR-код</b> ниже — второй телефон партнёра сканирует его и нажимает «Подключиться».</li>
+              <li>Оба участника надевают свои <b>Bluetooth-наушники</b> (или работают через динамики на расстоянии).</li>
+              <li>Удерживайте кнопку, пока не закончите всю мысль (можно говорить длинными предложениями) — перевод начнётся только после отпускания кнопки.</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- БЛОК QR-КОДА -->
+        <div id="qrBox" class="glass rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
+          <div id="qrcode" class="bg-white p-2.5 rounded-xl shrink-0 min-w-[144px] min-h-[144px] flex items-center justify-center text-slate-900 text-xs">
+            Генерация QR...
+          </div>
+          <div class="text-center sm:text-left flex-1">
+            <div class="text-sm font-semibold text-emerald-400">Подключение второго телефона</div>
+            <p class="text-xs text-slate-300 mt-1">
+              Наведите камеру второго телефона на QR-код или отправьте ссылку кнопкой ниже.
+            </p>
+            <div id="partnerStatus" class="text-xs text-amber-400 mt-2 font-medium">
+              ⏳ Ожидание подключения второго телефона...
+            </div>
+            <div class="flex flex-wrap gap-2 mt-2.5 justify-center sm:justify-start">
+              <button id="copyGuestLinkBtn" type="button" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
+                📋 Скопировать ссылку для 2-го телефона
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ПАНЕЛЬ ЗАПИСИ И СИНХРОННОГО ТАЙМЕРА -->
+        <div class="glass rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span id="recDot" class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+            <span class="text-xs font-medium text-slate-200">
+              Запись: <b id="recTimer" class="text-emerald-400 font-mono">00:00</b>
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="downloadTxtBtn" type="button" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
+              📄 Текст (.txt)
+            </button>
+            <button id="finishRecBtn" type="button" class="text-xs bg-rose-600 hover:bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-lg cursor-pointer">
+              ⏹ Завершить встречу
+            </button>
+          </div>
+        </div>
+
+        <!-- БЛОК СКАЧИВАНИЯ ПОСЛЕ ЗАВЕРШЕНИЯ -->
+        <div id="downloadReadyBox" class="hidden glass border-emerald-500/40 rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-sm">
+              <div class="font-semibold text-emerald-400">✅ Встреча завершена. Запись готова</div>
+              <div class="text-xs text-slate-400">Сохраните аудиофайл и текстовый протокол переговоров.</div>
+            </div>
+            <div class="flex gap-2">
+              <a id="audioDownloadLink" class="bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer">
+                ⬇️ Скачать аудио
+              </a>
+              <button id="downloadTxtBtn2" type="button" class="bg-slate-800 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-700 cursor-pointer">
+                ⬇️ Протокол
+              </button>
+            </div>
+          </div>
+          <button id="startNewRoomBtn" type="button" class="hidden w-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl border border-slate-700 cursor-pointer">
+            ➕ Создать новый кабинет для следующей встречи
+          </button>
+        </div>
+
+        <!-- ЛЕНТА СУБТИТРОВ -->
+        <div id="transcriptBox" class="glass rounded-2xl p-4 h-64 overflow-y-auto flex flex-col gap-3 text-sm">
+          <div class="text-center text-xs text-slate-500 my-auto">
+            Удерживайте кнопку ниже, пока говорите. Перевод начнётся только после того, как вы отпустите палец.
+          </div>
+        </div>
+
+        <!-- ИНДИКАТОР ЗАГРУЗКИ / СТАТУСА ОБРАБОТКИ НАД КНОПКОЙ (ВИДЕН ОБОИМ ТЕЛЕФОНАМ) -->
+        <div id="processingStatusBar" class="hidden glass border-indigo-500/40 rounded-xl px-4 py-2.5 flex items-center justify-center gap-3 text-xs sm:text-sm font-medium transition-all">
+          <span id="processingSpinner" class="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shrink-0"></span>
+          <span id="processingStatusText" class="text-indigo-200 text-center">Речь принята, идёт перевод...</span>
+        </div>
+
+        <!-- БОЛЬШАЯ КНОПКА PUSH-TO-TALK С ИНДИКАТОРОМ МИКРОФОНА -->
+        <div class="pt-0.5 pb-4 flex flex-col gap-2">
+          <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div id="micLevelBar" class="h-full w-0 bg-emerald-400 transition-all duration-75"></div>
+          </div>
+          <button id="pttBtn" type="button" oncontextmenu="return false;" class="ptt-btn w-full h-24 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer">
+            <span id="pttLabel">🎙 УДЕРЖИВАЙТЕ, ЧТОБЫ ГОВОРИТЬ</span>
+            <span id="pttSub" class="text-xs font-medium opacity-80 mt-0.5">Говорите сколько нужно → отпустите для перевода</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const EMBEDDED_API_KEY = "";
+    const CIPHER_SALT = "PhuketLive2026!Secret";
+    const SESSION_STORAGE_KEY = "ru_th_persistent_session_v3";
+    const API_KEY_STORAGE_KEY = "gemini_live_ru_th_key";
+    const N8N_WEBHOOK_URL = "";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const guestRoomParam = urlParams.get("room");
+    const hostRoomParam = urlParams.get("host");
+    const forceAdminParam = urlParams.get("admin") === "1";
+    const role = guestRoomParam ? "guest" : "host";
+
+    let activeApiKey = "";
+    let isKeyLoading = false;
+    let currentRoomId = "";
+    let meetingStopped = false;
+    let singlePhoneMode = false;
+    let isTranslatingTurn = false;
+    let activeTurnId = 0;
+
+    let audioCtx = null;
+    let mixerDest = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recSeconds = 0;
+    let recInterval = null;
+    let wakeLock = null;
+
+    let peer = null;
+    let conn = null;
+    let peerReconnectTimer = null;
+    let guestShareUrl = "";
+    let hostResumeUrl = "";
+
+    // Очередь и состояние разблокировки нативного WAV-аудио на втором телефоне
+    let guestAudioUnlocked = false;
+    let guestWavQueue = [];
+    let isPlayingGuestWav = false;
+
+    // Постоянный буфер речи для локальной записи при удержании кнопки
+    let isRecordingPTT = false;
+    let pttBufferedChunks = [];
+    let pttStartTimestamp = 0;
+    let pttTimerInterval = null;
+    let releaseTailTimer = null;
+
+    // Буфер входящих чанков от гостя на стороне хоста
+    let guestIncomingChunks = [];
+
+    let micStream = null;
+    let micSourceNode = null;
+    let scriptNode = null;
+    let muteGainNode = null;
+    let nextPlayTime = 0;
+    let nextGuestMixTime = 0;
+    let activeOutputSources = [];
+    let statusHideTimer = null;
+
+    let transcriptLog = [];
+
+    const setupScreen = document.getElementById("setupScreen");
+    const roomScreen = document.getElementById("roomScreen");
+    const guestEntryOverlay = document.getElementById("guestEntryOverlay");
+    const activeRoomBody = document.getElementById("activeRoomBody");
+    const connBadge = document.getElementById("connBadge");
+    const transcriptBox = document.getElementById("transcriptBox");
+    const pttBtn = document.getElementById("pttBtn");
+    const pttLabel = document.getElementById("pttLabel");
+    const pttSub = document.getElementById("pttSub");
+    const micLevelBar = document.getElementById("micLevelBar");
+    const setupErrorBox = document.getElementById("setupErrorBox");
+    const apiKeyFieldWrapper = document.getElementById("apiKeyFieldWrapper");
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const startHostBtn = document.getElementById("startHostBtn");
+    const resumeAudioBanner = document.getElementById("resumeAudioBanner");
+
+    const processingStatusBar = document.getElementById("processingStatusBar");
+    const processingSpinner = document.getElementById("processingSpinner");
+    const processingStatusText = document.getElementById("processingStatusText");
+
+    // Актуальный список моделей 2026 года (gemini-3.6-flash и gemini-3-flash-preview первыми!)
+    const TRANSLATION_MODELS = [
+      { name: "gemini-3.6-flash", useThinkingZero: false },
+      { name: "gemini-3-flash-preview", useThinkingZero: false },
+      { name: "gemini-2.5-flash", useThinkingZero: true }
+    ];
+
+    const TTS_MODELS = [
+      "gemini-3.8-flash-tts",
+      "gemini-3.8-flash-lite-tts",
+      "gemini-2.5-flash-preview-tts"
+    ];
+
+    function formatTimeMMSS(totalSec) {
+      const m = String(Math.floor(totalSec / 60)).padStart(2, "0");
+      const s = String(totalSec % 60).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    // ================= СИНХРОННЫЙ ИНДИКАТОР ЗАГРУЗКИ И ПРЕДУПРЕЖДЕНИЙ НА ОБОИХ ТЕЛЕФОНАХ =================
+    function setBottomStatus(mode, text, broadcastToGuest = false, autoHideMs = 0) {
+      clearTimeout(statusHideTimer);
+
+      if (mode === "hidden") {
+        processingStatusBar.classList.add("hidden");
+      } else {
+        processingStatusBar.classList.remove("hidden");
+        processingStatusText.textContent = text;
+
+        if (mode === "loading") {
+          processingStatusBar.className = "glass border-indigo-400/50 bg-indigo-950/70 rounded-xl px-4 py-3 flex items-center justify-center gap-3 text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-500/10";
+          processingSpinner.classList.remove("hidden");
+          processingStatusText.className = "text-indigo-200 text-center";
+        } else if (mode === "warn") {
+          processingStatusBar.className = "glass border-amber-400/60 bg-amber-950/75 rounded-xl px-4 py-3 flex items-center justify-center gap-2.5 text-xs sm:text-sm font-semibold shadow-lg shadow-amber-500/10";
+          processingSpinner.classList.add("hidden");
+          processingStatusText.className = "text-amber-200 text-center";
+        } else if (mode === "error") {
+          processingStatusBar.className = "glass border-rose-500/60 bg-rose-950/75 rounded-xl px-4 py-3 flex items-center justify-center gap-2.5 text-xs sm:text-sm font-semibold shadow-lg shadow-rose-500/10";
+          processingSpinner.classList.add("hidden");
+          processingStatusText.className = "text-rose-200 text-center";
+        }
+      }
+
+      if (autoHideMs > 0 && mode !== "hidden") {
+        statusHideTimer = setTimeout(() => {
+          processingStatusBar.classList.add("hidden");
+        }, autoHideMs);
+      }
+
+      if (broadcastToGuest && role === "host" && conn && conn.open) {
+        conn.send({
+          type: "STATUS_SYNC",
+          mode: mode,
+          text: text,
+          autoHideMs: autoHideMs
+        });
+      }
+    }
+
+    // ================= УТИЛИТЫ ШИФРОВАНИЯ И СЕССИИ =================
+    function encodeKeyToken(plainKey) {
+      let xored = "";
+      for (let i = 0; i < plainKey.length; i++) {
+        const code = plainKey.charCodeAt(i) ^ CIPHER_SALT.charCodeAt(i % CIPHER_SALT.length);
+        xored += String.fromCharCode(code);
+      }
+      return btoa(xored).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    function decodeKeyToken(token) {
+      try {
+        let b64 = token.replace(/-/g, "+").replace(/_/g, "/");
+        while (b64.length % 4) b64 += "=";
+        const xored = atob(b64);
+        let plain = "";
+        for (let i = 0; i < xored.length; i++) {
+          const code = xored.charCodeAt(i) ^ CIPHER_SALT.charCodeAt(i % CIPHER_SALT.length);
+          plain += String.fromCharCode(code);
+        }
+        return plain;
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function savePersistentSession() {
+      if (role !== "host" || !currentRoomId || meetingStopped) return;
+      try {
+        const payload = {
+          roomId: currentRoomId,
+          glossary: document.getElementById("glossaryInput").value || "",
+          recSeconds: recSeconds,
+          transcriptLog: transcriptLog,
+          singlePhoneMode: singlePhoneMode,
+          active: true,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {}
+    }
+
+    function loadPersistentSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.active && parsed.roomId) return parsed;
+      } catch (e) {}
+      return null;
+    }
+
+    function clearPersistentSession() {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (e) {}
+    }
+
+    function saveGuestTranscript() {
+      if (role !== "guest" || !guestRoomParam) return;
+      try {
+        localStorage.setItem("ru_th_guest_log_" + guestRoomParam, JSON.stringify(transcriptLog));
+      } catch (e) {}
+    }
+
+    function loadGuestTranscript() {
+      if (role !== "guest" || !guestRoomParam) return [];
+      try {
+        const raw = localStorage.getItem("ru_th_guest_log_" + guestRoomParam);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function renderSavedTranscript(items) {
+      if (!items || items.length === 0) return;
+      transcriptLog = items;
+      transcriptBox.innerHTML = "";
+      for (const item of items) {
+        const div = document.createElement("div");
+        div.className = "bg-slate-900/90 border border-slate-800 rounded-xl p-3";
+        div.innerHTML = `<div class="text-[11px] text-emerald-400 font-semibold mb-0.5">${item.speaker} • ${item.time}</div><div class="text-slate-100 leading-snug">${item.text}</div>`;
+        transcriptBox.appendChild(div);
+      }
+      transcriptBox.scrollTop = transcriptBox.scrollHeight;
+    }
+
+    async function requestScreenWakeLock() {
+      try {
+        if ("wakeLock" in navigator && !wakeLock) {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => { wakeLock = null; });
+        }
+      } catch (e) {}
+    }
+
+    // Секретное открытие/скрытие админ-панели ключа (5 нажатий на заголовок в шапке)
+    let brandTapCount = 0;
+    let brandTapTimer = null;
+    document.getElementById("brandHeader").addEventListener("click", () => {
+      if (role !== "host") return;
+      brandTapCount++;
+      clearTimeout(brandTapTimer);
+      brandTapTimer = setTimeout(() => { brandTapCount = 0; }, 1500);
+      if (brandTapCount >= 5) {
+        brandTapCount = 0;
+        apiKeyFieldWrapper.classList.remove("hidden");
+        document.getElementById("hideAdminPanelBtn").classList.remove("hidden");
+        if (activeApiKey) apiKeyInput.value = activeApiKey;
+      }
+    });
+
+    document.getElementById("hideAdminPanelBtn").addEventListener("click", () => {
+      if (activeApiKey && activeApiKey.startsWith("AIza")) {
+        apiKeyFieldWrapper.classList.add("hidden");
+      }
+    });
+
+    // ================= ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ (2 ТЕЛЕФОНА vs 1 ТЕЛЕФОН) =================
+    function setTranslationMode(useOnePhone) {
+      singlePhoneMode = useOnePhone;
+      const btnTwo = document.getElementById("modeTwoPhonesBtn");
+      const btnOne = document.getElementById("modeOnePhoneBtn");
+      const instructionBox = document.getElementById("modeInstructionBox");
+      const qrBox = document.getElementById("qrBox");
+
+      if (singlePhoneMode) {
+        btnOne.className = "py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20";
+        btnTwo.className = "py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500";
+        qrBox.classList.add("hidden");
+        instructionBox.innerHTML = `
+          <div class="font-semibold text-emerald-400 mb-1">Как использовать (перевод с 1 телефона):</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-300">
+            <li>Второй телефон и QR-код <b>не нужны</b> — используйте только это устройство.</li>
+            <li><b>Отключите наушники</b>, чтобы оба собеседника слышали перевод по громкой связи.</li>
+            <li>Говорите по очереди (можно длинными предложениями): зажали кнопку → договорили до конца → отпустили, после этого прозвучит перевод.</li>
+          </ol>
+        `;
+      } else {
+        btnTwo.className = "py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20";
+        btnOne.className = "py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500";
+        qrBox.classList.remove("hidden");
+        instructionBox.innerHTML = `
+          <div class="font-semibold text-emerald-400 mb-1">Как использовать (перевод с 2 телефонов и наушников):</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-300">
+            <li>Этот телефон показывает <b>QR-код</b> ниже — второй телефон партнёра сканирует его и нажимает «Подключиться».</li>
+            <li>Оба участника надевают свои <b>Bluetooth-наушники</b> (или работают через динамики на расстоянии).</li>
+            <li>Удерживайте кнопку, пока не закончите всю мысль (можно говорить длинными предложениями) — перевод начнётся только после отпускания кнопки.</li>
+          </ol>
+        `;
+      }
+      savePersistentSession();
+    }
+
+    document.getElementById("modeTwoPhonesBtn").addEventListener("click", () => setTranslationMode(false));
+    document.getElementById("modeOnePhoneBtn").addEventListener("click", () => setTranslationMode(true));
+
+    // ================= ИНИЦИАЛИЗАЦИЯ API-КЛЮЧА И СТАРТОВОГО ЭКРАНА =================
+    async function bootstrapApp() {
+      if (role === "guest") {
+        setupScreen.classList.add("hidden");
+        roomScreen.classList.remove("hidden");
+        roomScreen.classList.add("flex");
+        guestEntryOverlay.classList.remove("hidden");
+        activeRoomBody.classList.add("hidden");
+        document.getElementById("modePanel").classList.add("hidden");
+        document.getElementById("qrBox").classList.add("hidden");
+        document.getElementById("finishRecBtn").textContent = "⏹ Завершить встречу";
+        pttLabel.textContent = "🎙 กดค้างไว้เพื่อพูด (Удерживайте для речи)";
+        pttSub.textContent = "พูดจนจบประโยคแล้วค่อยปล่อยนิ้ว (Отпустите после всей фразы)";
+        const savedGuestLog = loadGuestTranscript();
+        if (savedGuestLog.length > 0) renderSavedTranscript(savedGuestLog);
+        initGuestPeer(guestRoomParam);
+        return;
+      }
+
+      if (EMBEDDED_API_KEY && EMBEDDED_API_KEY.startsWith("AIza")) {
+        activeApiKey = EMBEDDED_API_KEY.trim();
+        apiKeyFieldWrapper.classList.add("hidden");
+      } else {
+        const hash = window.location.hash || "";
+        if (hash.startsWith("#v=")) {
+          const vaultId = decodeURIComponent(hash.slice(3)).trim();
+          apiKeyFieldWrapper.classList.add("hidden");
+          isKeyLoading = true;
+          startHostBtn.disabled = true;
+          startHostBtn.textContent = "⏳ Загрузка защищённого доступа...";
+          try {
+            const res = await fetch("https://bytebin.lucko.me/" + encodeURIComponent(vaultId));
+            if (res.ok) {
+              const data = await res.json();
+              const unlocked = decodeKeyToken(data.t || "");
+              if (unlocked.startsWith("AIza")) {
+                activeApiKey = unlocked;
+                try { localStorage.setItem(API_KEY_STORAGE_KEY, unlocked); } catch (e) {}
+              }
+            }
+          } catch (err) {}
+          isKeyLoading = false;
+          startHostBtn.disabled = false;
+          startHostBtn.textContent = "Начать встречу";
+        } else if (hash.startsWith("#t=")) {
+          const unlocked = decodeKeyToken(decodeURIComponent(hash.slice(3)).trim());
+          if (unlocked.startsWith("AIza")) {
+            activeApiKey = unlocked;
+            try { localStorage.setItem(API_KEY_STORAGE_KEY, unlocked); } catch (e) {}
+            apiKeyFieldWrapper.classList.add("hidden");
+          }
+        } else if (hash.startsWith("#key=")) {
+          const extracted = decodeURIComponent(hash.slice(5)).trim();
+          if (extracted.startsWith("AIza")) {
+            activeApiKey = extracted;
+            try { localStorage.setItem(API_KEY_STORAGE_KEY, extracted); } catch (e) {}
+            apiKeyFieldWrapper.classList.add("hidden");
+          }
+        }
+
+        if (!activeApiKey) {
+          try {
+            const saved = localStorage.getItem(API_KEY_STORAGE_KEY);
+            if (saved && saved.startsWith("AIza")) {
+              activeApiKey = saved;
+              apiKeyInput.value = saved;
+              if (!forceAdminParam) {
+                apiKeyFieldWrapper.classList.add("hidden");
+              } else {
+                document.getElementById("hideAdminPanelBtn").classList.remove("hidden");
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      const savedSession = loadPersistentSession();
+      const targetRoomId = hostRoomParam || (savedSession ? savedSession.roomId : "");
+
+      if (targetRoomId && activeApiKey) {
+        if (savedSession && savedSession.glossary) {
+          document.getElementById("glossaryInput").value = savedSession.glossary;
+        }
+        if (savedSession && savedSession.recSeconds) {
+          recSeconds = savedSession.recSeconds;
+          document.getElementById("recTimer").textContent = formatTimeMMSS(recSeconds);
+        }
+        if (savedSession && savedSession.transcriptLog) {
+          renderSavedTranscript(savedSession.transcriptLog);
+        }
+        if (savedSession && typeof savedSession.singlePhoneMode === "boolean") {
+          setTranslationMode(savedSession.singlePhoneMode);
+        }
+        enterHostRoom(targetRoomId, activeApiKey, true);
+      } else if (window.location.hash) {
+        try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+      }
+    }
+
+    bootstrapApp();
+
+    // Кнопка входа для второго телефона: одним нажатием запрашивает микрофон И разблокирует динамик
+    document.getElementById("joinMeetingGuestBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("joinMeetingGuestBtn");
+      const errBox = document.getElementById("guestMicErrorBox");
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.textContent = "⏳ Включаем микрофон и звук...";
+
+      try {
+        await initAudioEngine(true);
+        const silentBuf = audioCtx.createBuffer(1, 240, 24000);
+        const silentSrc = audioCtx.createBufferSource();
+        silentSrc.buffer = silentBuf;
+        silentSrc.connect(audioCtx.destination);
+        silentSrc.start();
+
+        guestAudioUnlocked = true;
+        guestEntryOverlay.classList.add("hidden");
+        activeRoomBody.classList.remove("hidden");
+        playNextGuestWav();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = "🔊 Подключиться и включить микрофон (เริ่มใช้งาน)";
+        errBox.innerHTML = `⚠️ Браузер не дал доступ к микрофону (${e && e.message ? e.message : "Permission denied"}).<br/>Нажмите на <b>значок замка / настроек слева от адреса сайта</b> вверху браузера → выберите <b>«Микрофон: Разрешить»</b> и нажмите зелёную кнопку ещё раз.`;
+        errBox.classList.remove("hidden");
+      }
+    });
+
+    // ================= ГЕНЕРАЦИЯ СКРЫТОЙ ССЫЛКИ ДЛЯ ЗАКАЗЧИЦЫ =================
+    document.getElementById("copyClientMagicLinkBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("copyClientMagicLinkBtn");
+      const preview = document.getElementById("magicLinkPreview");
+      const val = (apiKeyInput.value || activeApiKey || "").trim();
+
+      if (!val.startsWith("AIza")) {
+        showSetupError("Сначала вставьте ваш ключ AIzaSy... в поле выше, затем нажмите кнопку создания ссылки.");
+        return;
+      }
+
+      setupErrorBox.classList.add("hidden");
+      activeApiKey = val;
+      try { localStorage.setItem(API_KEY_STORAGE_KEY, val); } catch (e) {}
+
+      const scrambledToken = encodeKeyToken(val);
+      btn.disabled = true;
+      btn.textContent = "⏳ Шифруем ключ и создаём короткую ссылку...";
+
+      let finalUrl = "";
+      try {
+        const res = await fetch("https://bytebin.lucko.me/post", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ t: scrambledToken })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.key) {
+            finalUrl = window.location.origin + window.location.pathname + "#v=" + json.key;
+          }
+        }
+      } catch (e) {}
+
+      if (!finalUrl) {
+        finalUrl = window.location.origin + window.location.pathname + "#t=" + scrambledToken;
+      }
+
+      btn.disabled = false;
+      preview.textContent = "Скрытая ссылка для заказчицы: " + finalUrl;
+      preview.classList.remove("hidden");
+
+      try {
+        await navigator.clipboard.writeText(finalUrl);
+        btn.textContent = "✅ Скрытая ссылка скопирована! (ключа в ней нет)";
+        setTimeout(() => {
+          btn.textContent = "🔒 Создать и скопировать скрытую ссылку для заказчицы";
+        }, 3500);
+      } catch (e) {
+        btn.textContent = "🔒 Создать и скопировать скрытую ссылку для заказчицы";
+        prompt("Скопируйте эту скрытую ссылку для заказчицы:", finalUrl);
+      }
+    });
+
+    function showSetupError(text) {
+      setupErrorBox.textContent = text;
+      setupErrorBox.classList.remove("hidden");
+    }
+
+    // ================= ПОСТОЯННЫЙ АУДИОДВИЖОК С АВТОУСИЛЕНИЕМ МИКРОФОНА =================
+    async function initAudioEngine(fromUserGesture) {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+        try {
+          mixerDest = audioCtx.createMediaStreamDestination();
+          startMasterRecording();
+        } catch (recErr) {
+          console.warn("Recorder fallback:", recErr);
+        }
+      }
+      if (audioCtx.state === "suspended") {
+        if (fromUserGesture) {
+          await audioCtx.resume();
+        } else {
+          resumeAudioBanner.classList.remove("hidden");
+        }
+      }
+      if (audioCtx.state === "running") {
+        resumeAudioBanner.classList.add("hidden");
+      }
+
+      const trackEnded = micStream && micStream.getAudioTracks().some((t) => t.readyState !== "live");
+      if (!micStream || trackEnded) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Браузер заблокировал микрофон. Откройте сайт по HTTPS в Chrome или Safari.");
+        }
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        setupPersistentMicPipeline();
+      }
+      requestScreenWakeLock();
+    }
+
+    function setupPersistentMicPipeline() {
+      if (!audioCtx || !micStream) return;
+      try {
+        if (scriptNode) scriptNode.disconnect();
+        if (muteGainNode) muteGainNode.disconnect();
+        if (micSourceNode) micSourceNode.disconnect();
+      } catch (e) {}
+
+      micSourceNode = audioCtx.createMediaStreamSource(micStream);
+      if (role === "host" && mixerDest) {
+        micSourceNode.connect(mixerDest);
+      }
+
+      scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
+      muteGainNode = audioCtx.createGain();
+      muteGainNode.gain.value = 0;
+
+      scriptNode.onaudioprocess = (e) => {
+        if (!isRecordingPTT) return;
+        const inputFloat = e.inputBuffer.getChannelData(0);
+
+        let sum = 0;
+        for (let i = 0; i < inputFloat.length; i += 4) sum += inputFloat[i] * inputFloat[i];
+        const rms = Math.sqrt(sum / (inputFloat.length / 4));
+        const pct = Math.min(100, Math.round(rms * 550));
+        micLevelBar.style.width = pct + "%";
+
+        const pcm16k = downsampleTo16k(inputFloat, audioCtx.sampleRate);
+        pttBufferedChunks.push(pcm16k);
+      };
+
+      micSourceNode.connect(scriptNode);
+      scriptNode.connect(muteGainNode);
+      muteGainNode.connect(audioCtx.destination);
+    }
+
+    resumeAudioBanner.addEventListener("click", async () => {
+      try {
+        await initAudioEngine(true);
+        resumeAudioBanner.classList.add("hidden");
+      } catch (e) {
+        alert("Нажмите на значок замка слева от адреса сайта и разрешите доступ к микрофону.");
+      }
+    });
+
+    function startMasterRecording() {
+      if (role !== "host" || !mixerDest || typeof MediaRecorder === "undefined") return;
+      if (mediaRecorder && mediaRecorder.state === "recording") return;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : (MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "");
+      mediaRecorder = mimeType
+        ? new MediaRecorder(mixerDest.stream, { mimeType })
+        : new MediaRecorder(mixerDest.stream);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        showDownloadPanel(url, blob);
+        if (conn && conn.open) {
+          blob.arrayBuffer().then((buf) => {
+            conn.send({
+              type: "RECORDING_FILE",
+              buffer: buf,
+              mime: blob.type,
+              transcript: transcriptLog
+            });
+          });
+        }
+      };
+      mediaRecorder.start(1000);
+
+      if (!recInterval) {
+        document.getElementById("recTimer").textContent = formatTimeMMSS(recSeconds);
+        recInterval = setInterval(() => {
+          if (meetingStopped) return;
+          recSeconds++;
+          const formatted = formatTimeMMSS(recSeconds);
+          document.getElementById("recTimer").textContent = formatted;
+          if (conn && conn.open) {
+            conn.send({ type: "TIMER_SYNC", seconds: recSeconds, formatted: formatted });
+          }
+          if (recSeconds % 5 === 0) savePersistentSession();
+        }, 1000);
+      }
+    }
+
+    function showDownloadPanel(url, blob) {
+      clearInterval(recInterval);
+      recInterval = null;
+      document.getElementById("recDot").classList.remove("animate-ping");
+      const box = document.getElementById("downloadReadyBox");
+      const link = document.getElementById("audioDownloadLink");
+      const ext = (blob.type && blob.type.includes("mp4")) ? "m4a" : "webm";
+      link.href = url;
+      link.download = `meeting-record-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      box.classList.remove("hidden");
+      if (role === "host") {
+        document.getElementById("startNewRoomBtn").classList.remove("hidden");
+      }
+    }
+
+    // ================= ВХОД И ВОССТАНОВЛЕНИЕ КАБИНЕТА ОРГАНИЗАТОРА =================
+    async function enterHostRoom(roomId, apiKey, isRestoredSession) {
+      currentRoomId = roomId;
+      activeApiKey = apiKey;
+      meetingStopped = false;
+
+      hostResumeUrl = `${window.location.origin}${window.location.pathname}?host=${roomId}`;
+      try {
+        history.replaceState(null, "", `?host=${roomId}`);
+      } catch (e) {}
+
+      savePersistentSession();
+
+      setupScreen.classList.add("hidden");
+      roomScreen.classList.remove("hidden");
+      roomScreen.classList.add("flex");
+      activeRoomBody.classList.remove("hidden");
+      document.getElementById("roomCodeBadge").textContent = roomId;
+
+      guestShareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+      const qrContainer = document.getElementById("qrcode");
+      qrContainer.innerHTML = "";
+      if (typeof QRCode !== "undefined") {
+        new QRCode(qrContainer, { text: guestShareUrl, width: 132, height: 132 });
+      } else {
+        qrContainer.textContent = "Нажмите кнопку ссылки ниже";
+      }
+
+      try {
+        await initAudioEngine(!isRestoredSession);
+      } catch (err) {
+        resumeAudioBanner.classList.remove("hidden");
+      }
+
+      initHostPeer(roomId);
+      connBadge.textContent = "🟢 Переводчик готов";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+    }
+
+    startHostBtn.addEventListener("click", async () => {
+      if (isKeyLoading) return;
+      setupErrorBox.classList.add("hidden");
+      const apiKey = (activeApiKey || apiKeyInput.value || "").trim();
+
+      if (!apiKey) {
+        showSetupError("Вставьте ваш API-ключ из Google AI Studio (начинается на AIzaSy...) в поле выше.");
+        return;
+      }
+      if (!apiKey.startsWith("AIza")) {
+        showSetupError("Неверный формат ключа. Нужен ключ из Google AI Studio (начинается на AIzaSy...).");
+        return;
+      }
+
+      try { localStorage.setItem(API_KEY_STORAGE_KEY, apiKey); } catch (e) {}
+      apiKeyFieldWrapper.classList.add("hidden");
+      const newRoomId = "phuket-" + Math.random().toString(36).substring(2, 8);
+      await enterHostRoom(newRoomId, apiKey, false);
+    });
+
+    document.getElementById("copyGuestLinkBtn").addEventListener("click", async () => {
+      if (!guestShareUrl) return;
+      try {
+        await navigator.clipboard.writeText(guestShareUrl);
+        document.getElementById("copyGuestLinkBtn").textContent = "✅ Ссылка скопирована";
+        setTimeout(() => {
+          document.getElementById("copyGuestLinkBtn").textContent = "📋 Скопировать ссылку для 2-го телефона";
+        }, 2500);
+      } catch (e) {
+        prompt("Скопируйте ссылку для 2-го телефона:", guestShareUrl);
+      }
+    });
+
+    document.getElementById("startNewRoomBtn").addEventListener("click", () => {
+      clearPersistentSession();
+      window.location.href = window.location.origin + window.location.pathname;
+    });
+
+    // ================= P2P СВЯЗЬ С АВТОПЕРЕПОДКЛЮЧЕНИЕМ =================
+    function initHostPeer(roomId) {
+      if (typeof Peer === "undefined" || meetingStopped) return;
+      if (peer && !peer.destroyed) {
+        try { peer.destroy(); } catch (e) {}
+      }
+
+      peer = new Peer(roomId);
+
+      peer.on("open", () => {
+        if (!conn || !conn.open) {
+          document.getElementById("partnerStatus").textContent = "⏳ Ожидание подключения второго телефона...";
+          document.getElementById("partnerStatus").className = "text-xs text-amber-400 mt-2 font-medium";
+        }
+      });
+
+      peer.on("connection", (connection) => {
+        conn = connection;
+        document.getElementById("partnerStatus").textContent = "✅ Второй телефон подключён!";
+        document.getElementById("partnerStatus").className = "text-xs text-emerald-400 mt-2 font-semibold";
+
+        conn.send({
+          type: "TIMER_SYNC",
+          seconds: recSeconds,
+          formatted: formatTimeMMSS(recSeconds)
+        });
+
+        if (transcriptLog.length > 0) {
+          setTimeout(() => {
+            if (conn && conn.open) {
+              conn.send({ type: "FULL_HISTORY_SYNC", transcript: transcriptLog });
+            }
+          }, 400);
+        }
+
+        conn.on("data", (data) => {
+          if (data.type === "GUEST_AUDIO_CHUNK") {
+            const pcm16 = new Int16Array(data.pcm);
+            guestIncomingChunks.push(pcm16);
+            playIncomingGuestToMixer(pcm16);
+          } else if (data.type === "GUEST_AUDIO_COMMIT") {
+            const fullGuestPcm = mergeInt16Chunks(guestIncomingChunks);
+            guestIncomingChunks = [];
+            if (fullGuestPcm.length > 0) {
+              processCompleteTurn(fullGuestPcm, "guest");
+            } else {
+              setBottomStatus(
+                "warn",
+                "⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (พูดไม่ชัด กรุณาพูดใหม่อีกครั้ง)",
+                true,
+                4500
+              );
+            }
+          } else if (data.type === "REQUEST_FINISH") {
+            finishMeetingAndShare();
+          }
+        });
+
+        conn.on("close", () => {
+          if (!meetingStopped) {
+            document.getElementById("partnerStatus").textContent = "🟡 Связь со вторым телефоном прервалась, ждём возврата...";
+            document.getElementById("partnerStatus").className = "text-xs text-amber-400 mt-2 font-medium";
+          }
+        });
+      });
+
+      peer.on("disconnected", () => {
+        if (!meetingStopped && peer && !peer.destroyed) {
+          setTimeout(() => {
+            try { peer.reconnect(); } catch (e) {}
+          }, 1500);
+        }
+      });
+
+      peer.on("error", (err) => {
+        if (meetingStopped) return;
+        if (err.type === "unavailable-id" || err.type === "network" || err.type === "server-error") {
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = setTimeout(() => initHostPeer(roomId), 2000);
+        }
+      });
+    }
+
+    function initGuestPeer(hostId) {
+      if (typeof Peer === "undefined" || meetingStopped) return;
+      if (peer && !peer.destroyed) {
+        try { peer.destroy(); } catch (e) {}
+      }
+
+      connBadge.textContent = "🟡 Подключение к кабинету...";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+
+      peer = new Peer();
+      peer.on("open", () => {
+        connectGuestToHost(hostId);
+      });
+
+      peer.on("disconnected", () => {
+        if (!meetingStopped && peer && !peer.destroyed) {
+          setTimeout(() => {
+            try { peer.reconnect(); } catch (e) {}
+          }, 1500);
+        }
+      });
+
+      peer.on("error", () => {
+        if (!meetingStopped) {
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = setTimeout(() => initGuestPeer(hostId), 2500);
+        }
+      });
+    }
+
+    function connectGuestToHost(hostId) {
+      if (meetingStopped || !peer || peer.destroyed) return;
+      conn = peer.connect(hostId, { reliable: true });
+
+      conn.on("open", () => {
+        connBadge.textContent = "🟢 Подключено к переводчику";
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+      });
+
+      conn.on("data", async (data) => {
+        if (data.type === "TIMER_SYNC") {
+          recSeconds = data.seconds || 0;
+          document.getElementById("recTimer").textContent = data.formatted || formatTimeMMSS(recSeconds);
+        } else if (data.type === "STATUS_SYNC") {
+          setBottomStatus(data.mode, data.text, false, data.autoHideMs || 0);
+        } else if (data.type === "AI_WAV_FOR_GUEST") {
+          const wavBlob = new Blob([data.wav], { type: "audio/wav" });
+          const wavUrl = URL.createObjectURL(wavBlob);
+          guestWavQueue.push(wavUrl);
+          if (guestAudioUnlocked) {
+            playNextGuestWav();
+          }
+        } else if (data.type === "AI_BROWSER_TTS_FOR_GUEST") {
+          speakBrowserTts(data.text, data.lang || "th-TH");
+        } else if (data.type === "TRANSCRIPT_SYNC") {
+          appendMessage(data.speaker, data.text, false);
+        } else if (data.type === "FULL_HISTORY_SYNC" && Array.isArray(data.transcript)) {
+          renderSavedTranscript(data.transcript);
+          saveGuestTranscript();
+        } else if (data.type === "RECORDING_FILE") {
+          meetingStopped = true;
+          const blob = new Blob([data.buffer], { type: data.mime || "audio/webm" });
+          const url = URL.createObjectURL(blob);
+          if (data.transcript) renderSavedTranscript(data.transcript);
+          showDownloadPanel(url, blob);
+          connBadge.textContent = "🏁 Встреча завершена";
+        }
+      });
+
+      conn.on("close", () => {
+        if (!meetingStopped) {
+          connBadge.textContent = "🟡 Ожидание возврата организатора...";
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = setTimeout(() => connectGuestToHost(hostId), 2000);
+        }
+      });
+    }
+
+    function playNextGuestWav() {
+      if (isPlayingGuestWav || guestWavQueue.length === 0) return;
+      isPlayingGuestWav = true;
+      const wavUrl = guestWavQueue.shift();
+      const audioEl = new Audio(wavUrl);
+      audioEl.playsInline = true;
+      audioEl.onended = () => {
+        URL.revokeObjectURL(wavUrl);
+        isPlayingGuestWav = false;
+        playNextGuestWav();
+      };
+      audioEl.onerror = () => {
+        URL.revokeObjectURL(wavUrl);
+        isPlayingGuestWav = false;
+        playNextGuestWav();
+      };
+      audioEl.play().catch(() => {
+        isPlayingGuestWav = false;
+      });
+    }
+
+    // ================= АВТОВОССТАНОВЛЕНИЕ ПРИ ЗВОНКАХ И СМЕНЕ ВКЛАДКИ =================
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && !meetingStopped) {
+        if (audioCtx && audioCtx.state === "suspended") {
+          try {
+            await audioCtx.resume();
+            resumeAudioBanner.classList.add("hidden");
+          } catch (e) {
+            resumeAudioBanner.classList.remove("hidden");
+          }
+        }
+        requestScreenWakeLock();
+
+        if (role === "host" && currentRoomId) {
+          if (!peer || peer.destroyed || peer.disconnected) {
+            initHostPeer(currentRoomId);
+          }
+        } else if (role === "guest" && guestRoomParam) {
+          if (!conn || !conn.open) {
+            initGuestPeer(guestRoomParam);
+          }
+        }
+      }
+    });
+
+    window.addEventListener("online", () => {
+      if (meetingStopped) return;
+      if (role === "host" && currentRoomId) {
+        initHostPeer(currentRoomId);
+      } else if (role === "guest" && guestRoomParam) {
+        initGuestPeer(guestRoomParam);
+      }
+    });
+
+    // ================= АНАЛИЗ ГРОМКОСТИ И АВТОУСИЛЕНИЕ ТИХОЙ РЕЧИ =================
+    function calculatePcmStats(pcm16) {
+      if (!pcm16 || pcm16.length === 0) return { rms: 0, peak: 0, activeFrames: 0 };
+      let sumSquares = 0;
+      let peak = 0;
+      const FRAME = 320;
+      let activeFrames = 0;
+
+      for (let i = 0; i < pcm16.length; i++) {
+        const absVal = Math.abs(pcm16[i]);
+        if (absVal > peak) peak = absVal;
+        const norm = pcm16[i] / 32768.0;
+        sumSquares += norm * norm;
+      }
+
+      for (let s = 0; s + FRAME <= pcm16.length; s += FRAME) {
+        let fSum = 0;
+        for (let i = s; i < s + FRAME; i++) {
+          const v = pcm16[i] / 32768.0;
+          fSum += v * v;
+        }
+        if (Math.sqrt(fSum / FRAME) > 0.0035) activeFrames++;
+      }
+
+      return {
+        rms: Math.sqrt(sumSquares / pcm16.length),
+        peak: peak / 32768.0,
+        activeFrames
+      };
+    }
+
+    function normalizeAudioPcm16(pcm16) {
+      if (!pcm16 || pcm16.length === 0) return pcm16;
+      let maxAbs = 0;
+      for (let i = 0; i < pcm16.length; i++) {
+        const a = Math.abs(pcm16[i]);
+        if (a > maxAbs) maxAbs = a;
+      }
+      if (maxAbs === 0) return pcm16;
+      const targetPeak = 26000;
+      const gain = Math.min(8.0, Math.max(1.0, targetPeak / maxAbs));
+      if (gain <= 1.05) return pcm16;
+
+      const out = new Int16Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        const v = Math.round(pcm16[i] * gain);
+        out[i] = Math.max(-32768, Math.min(32767, v));
+      }
+      return out;
+    }
+
+    // ================= КОДИРОВАНИЕ WAV (24000 Hz И 16000 Hz) =================
+    function buildWavArrayBuffer(pcm16, sampleRate) {
+      const dataBytes = pcm16.byteLength;
+      const buffer = new ArrayBuffer(44 + dataBytes);
+      const view = new DataView(buffer);
+
+      function writeStr(offset, str) {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      }
+
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + dataBytes, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, "data");
+      view.setUint32(40, dataBytes, true);
+
+      const outBytes = new Uint8Array(buffer);
+      const pcmBytes = new Uint8Array(pcm16.buffer, pcm16.byteOffset, pcm16.byteLength);
+      outBytes.set(pcmBytes, 44);
+      return buffer;
+    }
+
+    function encodeWavBase64(pcm16, sampleRate) {
+      const buffer = buildWavArrayBuffer(pcm16, sampleRate);
+      const outBytes = new Uint8Array(buffer);
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < outBytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, outBytes.subarray(i, i + chunk));
+      }
+      return btoa(binary);
+    }
+
+    // ================= СТИЛЬ РЕЧИ И АНТИ-ГАЛЛЮЦИНАЦИИ =================
+    const STYLE_STORAGE_KEY = "translator_style";
+    const STYLE_PROMPTS = {
+      business: "Стиль: деловой. Формальный тайский, обращение คุณ, частицы ครับ или ค่ะ в каждой фразе, без разговорных слов.",
+      professional: "Стиль: профессиональный. Нейтральный и точный тайский, термины без упрощений, частицы ครับ или ค่ะ в конце фразы.",
+      friendly: "Стиль: дружеский. Разговорный тайский, короткие фразы, частицы นะ и ครับ или ค่ะ.",
+      simple: "Стиль: простой. Короткие фразы, самые распространённые слова, без сложных оборотов, частицы ครับ или ค่ะ."
+    };
+    const styleSelectEl = document.getElementById("styleSelect");
+    try {
+      const savedStyle = localStorage.getItem(STYLE_STORAGE_KEY);
+      if (savedStyle && STYLE_PROMPTS[savedStyle]) styleSelectEl.value = savedStyle;
+    } catch (e) {}
+    styleSelectEl.addEventListener("change", () => {
+      try { localStorage.setItem(STYLE_STORAGE_KEY, styleSelectEl.value); } catch (e) {}
+    });
+
+    const HALLUCINATION_PATTERNS = [
+      /продолжение следует/i,
+      /субтитры сделал/i,
+      /редактор субтитров/i,
+      /спасибо за просмотр/i,
+      /подписывайтесь на канал/i,
+      /dimatorzok/i,
+      /amara\.org/i,
+      /переводчик\s+и\s+корректор/i
+    ];
+
+    function isLikelyHallucination(originalText, durationSec) {
+      if (!originalText) return true;
+      const clean = originalText.trim();
+      if (clean.length === 0) return true;
+
+      for (const pat of HALLUCINATION_PATTERNS) {
+        if (pat.test(clean)) return true;
+      }
+
+      if (durationSec > 0 && durationSec < 1.2 && clean.length > 65) return true;
+      if (durationSec > 0 && (clean.length / Math.max(0.6, durationSec)) > 35) return true;
+
+      return false;
+    }
+
+    // ================= РАСПОЗНАВАНИЕ И ПЕРЕВОД (GEMINI 3.6 FLASH ПЕРВАЯ) =================
+    async function transcribeAndTranslateWav(wavBase64, durationSec = 3.0) {
+      const glossary = document.getElementById("glossaryInput").value.trim();
+      const styleText = STYLE_PROMPTS[styleSelectEl.value] || STYLE_PROMPTS.business;
+      const promptText = `Ты переводчик между русским и тайским. Тебе дана аудиозапись одной реплики.
+
+Правила:
+1. Сначала реши, есть ли в записи разборчивая человеческая речь. Тишина, шум, дыхание, эхо, музыка и обрывки звуков не считаются речью.
+2. Если речи нет, верни speech=false и пустые строки в остальных полях.
+3. Если речь есть, запиши в поле original дословно то, что сказано. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО придумывать фразы, имена, компании или добавлять слова, которых нет в записи.
+4. Русская речь: source_lang "ru", target_lang "th". Переведи на тайский. ${styleText} Стиль меняет только форму речи. Не добавляй факты, имена и слова, которых нет в оригинале.
+5. Тайская речь: source_lang "th", target_lang "ru". Переведи на естественный русский.
+6. Если слово неразборчиво, пропусти его. Не угадывай.
+${glossary ? "Подсказка для написания имён и терминов (используй ТОЛЬКО если они реально прозвучали в записи): " + glossary : ""}`;
+
+      let lastErr = "Неизвестная ошибка API";
+      for (const m of TRANSLATION_MODELS) {
+        const genConfig = {
+          temperature: 0.0,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              speech: { type: "BOOLEAN" },
+              source_lang: { type: "STRING" },
+              target_lang: { type: "STRING" },
+              original: { type: "STRING" },
+              translation: { type: "STRING" }
+            },
+            required: ["speech", "source_lang", "target_lang", "original", "translation"]
+          }
+        };
+        if (m.useThinkingZero) {
+          genConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${m.name}:generateContent?key=${encodeURIComponent(activeApiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { inlineData: { mimeType: "audio/wav", data: wavBase64 } },
+                  { text: promptText }
+                ]
+              }],
+              generationConfig: genConfig
+            })
+          }
+        );
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          lastErr = (errJson.error && errJson.error.message) ? errJson.error.message : `HTTP ${res.status}`;
+          continue;
+        }
+
+        const data = await res.json();
+        const respParts = data?.candidates?.[0]?.content?.parts || [];
+        const rawText = respParts.filter(p => !p.thought && typeof p.text === "string").map(p => p.text).join("");
+        const cleanedJsonStr = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+        let parsed = null;
+        try { parsed = JSON.parse(cleanedJsonStr); } catch (e) { lastErr = "Ответ не JSON (" + m.name + ")"; continue; }
+        if (parsed && typeof parsed.translation === "string") {
+          if (parsed.speech === false || isLikelyHallucination(parsed.original, durationSec)) {
+            return { source_lang: "", target_lang: "", original: "", translation: "" };
+          }
+          parsed._model = m.name;
+          return parsed;
+        }
+      }
+      throw new Error(lastErr);
+    }
+
+    async function synthesizeGeminiTts(textToSpeak) {
+      for (const ttsModel of TTS_MODELS) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${ttsModel}:generateContent?key=${encodeURIComponent(activeApiKey)}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: textToSpeak }] }],
+                generationConfig: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
+                  }
+                }
+              })
+            }
+          );
+
+          if (!res.ok) continue;
+          const data = await res.json();
+          const parts = data?.candidates?.[0]?.content?.parts || [];
+          for (const p of parts) {
+            if (p.inlineData && p.inlineData.data) {
+              return base64ToInt16(p.inlineData.data);
+            }
+          }
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    function speakBrowserTts(text, langCode) {
+      try {
+        if (typeof speechSynthesis === "undefined") return;
+        speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = langCode === "ru" ? "ru-RU" : "th-TH";
+        utter.rate = 0.96;
+        speechSynthesis.speak(utter);
+      } catch (e) {}
+    }
+
+    // ================= САМОПРОВЕРКА ПЕРЕД ВСТРЕЧЕЙ =================
+    const THAI_RE = /[฀-๿]/;
+
+    async function selfCheckTextModel(modelName, key) {
+      const body = {
+        contents: [{ parts: [{ text: "Переведи на тайский одной фразой. Верни только перевод. Фраза: Добрый день, рад вас видеть." }] }],
+        generationConfig: { temperature: 0.0 }
+      };
+      if (modelName.startsWith("gemini-2.5")) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(key)}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+        );
+        if (!res.ok) {
+          const ej = await res.json().catch(() => ({}));
+          const m = (ej.error && ej.error.message) ? ej.error.message : "";
+          return { ok: false, msg: "HTTP " + res.status + " " + m.slice(0, 90) };
+        }
+        const data = await res.json();
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const text = parts.filter(x => !x.thought && typeof x.text === "string").map(x => x.text).join("").trim();
+        if (THAI_RE.test(text)) return { ok: true, msg: text.slice(0, 60) };
+        return { ok: false, msg: "Ответ без тайского текста" };
+      } catch (e) {
+        return { ok: false, msg: "Нет связи: " + (e.message || e) };
+      }
+    }
+
+    function selfCheckPeer() {
+      return new Promise(resolve => {
+        let done = false;
+        let p = null;
+        const fin = (ok, msg) => {
+          if (done) return;
+          done = true;
+          try { if (p) p.destroy(); } catch (e) {}
+          resolve({ ok, msg });
+        };
+        try {
+          p = new Peer();
+          p.on("open", () => fin(true, "Сервер соединения отвечает"));
+          p.on("error", e => fin(false, "Ошибка: " + (e.type || e.message || e)));
+        } catch (e) {
+          fin(false, String(e.message || e));
+        }
+        setTimeout(() => fin(false, "Нет ответа за 8 секунд"), 8000);
+      });
+    }
+
+    async function runSelfCheck() {
+      const btn = document.getElementById("selfCheckBtn");
+      const box = document.getElementById("selfCheckBox");
+      box.innerHTML = "";
+      box.classList.remove("hidden");
+      btn.disabled = true;
+      btn.classList.add("opacity-60");
+
+      const icons = { ok: "✅", warn: "⚠️", fail: "❌", info: "ℹ️", run: "⏳" };
+      const counts = { ok: 0, warn: 0, fail: 0 };
+      function addRow(status, text) {
+        const row = document.createElement("div");
+        row.textContent = icons[status] + " " + text;
+        box.appendChild(row);
+        if (counts[status] !== undefined) counts[status]++;
+        return row;
+      }
+      function setRow(row, status, text) {
+        row.textContent = icons[status] + " " + text;
+        if (counts[status] !== undefined) counts[status]++;
+      }
+
+      try {
+        if (navigator.onLine) addRow("ok", "Интернет есть");
+        else addRow("fail", "Нет интернета");
+
+        const key = (activeApiKey || apiKeyInput.value || "").trim();
+        if (!key.startsWith("AIza")) {
+          addRow("fail", "Ключ Gemini не введён или неверный.");
+          return;
+        }
+        activeApiKey = key;
+
+        // Проверяем первую рабочую модель из списка TRANSLATION_MODELS
+        const modelRow = addRow("run", "Проверка модели перевода (gemini-3.6-flash)...");
+        let workingModel = "";
+        let modelReply = "";
+        for (const m of TRANSLATION_MODELS) {
+          const r = await selfCheckTextModel(m.name, key);
+          if (r.ok) {
+            workingModel = m.name;
+            modelReply = r.msg;
+            break;
+          }
+        }
+        if (workingModel) {
+          setRow(modelRow, "ok", `Модель ${workingModel} работает отлично: ${modelReply}`);
+        } else {
+          setRow(modelRow, "fail", "Модели перевода не ответили. Проверьте ключ и баланс в Google AI Studio.");
+          return;
+        }
+
+        const ttsRow = addRow("run", "Проверка голосовой озвучки Gemini...");
+        const pcm24 = await synthesizeGeminiTts("สวัสดีครับ");
+        if (pcm24 && pcm24.length > 0) {
+          setRow(ttsRow, "ok", "Озвучка Gemini работает (" + (pcm24.length / 24000).toFixed(1) + " сек звука)");
+        } else {
+          setRow(ttsRow, "warn", "Озвучка Gemini переключилась на резервный синтезатор браузера");
+        }
+
+        const peerRow = addRow("run", "Проверка сервера связи телефонов...");
+        const pr = await selfCheckPeer();
+        setRow(peerRow, pr.ok ? "ok" : "fail", "Связь телефонов: " + pr.msg);
+
+        const micRow = addRow("run", "Проверка микрофона (скажите пару слов вслух, 3 сек)...");
+        try {
+          await initAudioEngine(true);
+          pttBufferedChunks = [];
+          isRecordingPTT = true;
+          await new Promise(r => setTimeout(r, 3000));
+          isRecordingPTT = false;
+          micLevelBar.style.width = "0%";
+
+          const testPcm = mergeInt16Chunks(pttBufferedChunks);
+          pttBufferedChunks = [];
+          const stats = calculatePcmStats(testPcm);
+
+          if (stats.rms < 0.001) {
+            setRow(micRow, "warn", "Микрофон включён, но вы промолчали (тишина отсекается корректно)");
+          } else {
+            const norm = normalizeAudioPcm16(testPcm);
+            const rr = await transcribeAndTranslateWav(encodeWavBase64(norm, 16000), 3.0);
+            if (rr && rr.original) {
+              setRow(micRow, "ok", `Микрофон работает! Услышано: «${rr.original}» → «${rr.translation}»`);
+            } else {
+              setRow(micRow, "ok", "Микрофон работает, посторонний шум отфильтрован без галлюцинаций");
+            }
+          }
+        } catch (micErr) {
+          setRow(
+            micRow,
+            "fail",
+            "Доступ к микрофону запрещён в браузере (Permission denied). Нажмите на значок замка/настроек слева от адреса сайта ru-tai-translation.netlify.app вверху браузера → выберите «Микрофон: Разрешить» и обновите страницу."
+          );
+        }
+      } catch (e) {
+        addRow("fail", "Сбой самопроверки: " + (e.message || e));
+      } finally {
+        const sum = document.createElement("div");
+        sum.className = "mt-1 pt-2 border-t border-slate-700 font-semibold";
+        if (counts.fail > 0) sum.textContent = "Итог: разрешите микрофон в адресной строке браузера (значок замка слева от адреса)";
+        else sum.textContent = "Итог: всё полностью готово к встрече!";
+        box.appendChild(sum);
+        btn.disabled = false;
+        btn.classList.remove("opacity-60");
+      }
+    }
+    document.getElementById("selfCheckBtn").addEventListener("click", runSelfCheck);
+
+    // ================= ОБРАБОТКА ОДНОЙ ЗАКОНЧЕННОЙ РЕПЛИКИ =================
+    async function processCompleteTurn(fullPcm16, speakerSide) {
+      if (meetingStopped || !activeApiKey) return;
+
+      const durationSec = fullPcm16.length / 16000;
+      const stats = calculatePcmStats(fullPcm16);
+
+      if (stats.rms < 0.0012 || (stats.activeFrames < 3 && stats.peak < 0.015)) {
+        setBottomStatus(
+          "warn",
+          "⚠️ Речь не опознана (слишком тихо). Пожалуйста, повторите ещё раз (เสียงเบาเกินไป กรุณาพูดใหม่อีกครั้ง)",
+          true,
+          4500
+        );
+        connBadge.textContent = "⚠️ Слишком тихо";
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+        setTimeout(() => {
+          if (!isTranslatingTurn && !meetingStopped) {
+            connBadge.textContent = "🟢 Переводчик готов";
+            connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+          }
+        }, 3000);
+        return;
+      }
+
+      const myTurnId = ++activeTurnId;
+      isTranslatingTurn = true;
+
+      stopCurrentPlayback();
+
+      setBottomStatus(
+        "loading",
+        "Речь принята, идёт перевод... (ได้รับเสียงแล้ว กำลังแปล...)",
+        true,
+        0
+      );
+      connBadge.textContent = "⏳ Переводим фразу...";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300";
+
+      try {
+        // Автоусиление тихой речи перед отправкой
+        const normalizedPcm = normalizeAudioPcm16(fullPcm16);
+        const wavB64 = encodeWavBase64(normalizedPcm, 16000);
+        const result = await transcribeAndTranslateWav(wavB64, durationSec);
+
+        if (myTurnId !== activeTurnId || meetingStopped) return;
+
+        const originalText = (result.original || "").trim();
+        const translationText = (result.translation || "").trim();
+        const sourceLang = (result.source_lang || "").toLowerCase();
+        const targetLang = (result.target_lang || "").toLowerCase();
+
+        if (!originalText || !translationText) {
+          setBottomStatus(
+            "warn",
+            "⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (ไม่สามารถจับใจความได้ กรุณาพูดใหม่อีกครั้ง)",
+            true,
+            5000
+          );
+          connBadge.textContent = "⚠️ Речь не опознана";
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+          setTimeout(() => {
+            if (!isTranslatingTurn && !meetingStopped) {
+              connBadge.textContent = "🟢 Переводчик готов";
+              connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+            }
+          }, 3500);
+          return;
+        }
+
+        const isDetectedThai = sourceLang === "th" || THAI_RE.test(originalText);
+        const isDetectedRussian = sourceLang === "ru" || !isDetectedThai;
+
+        let whoLabel = "";
+        if (singlePhoneMode) {
+          whoLabel = isDetectedThai ? "🇹🇭 Реплика (TH)" : "🇷🇺 Реплика (RU)";
+        } else if (speakerSide === "guest") {
+          whoLabel = isDetectedRussian ? "🇷🇺 Собеседник (RU)" : "🇹🇭 Партнёр (TH)";
+        } else {
+          whoLabel = isDetectedThai ? "🇹🇭 Вы (TH)" : "🇷🇺 Вы (RU)";
+        }
+        appendMessage(whoLabel, originalText, true);
+
+        const isTargetRussian = targetLang === "ru" || isDetectedThai;
+        const transLabel = isTargetRussian ? "🤖 Перевод на русский" : "🤖 Перевод на тайский";
+        appendMessage(transLabel, translationText, true);
+
+        setBottomStatus(
+          "loading",
+          "🔊 Озвучиваем перевод... (กำลังเล่นเสียงแปล...)",
+          true,
+          0
+        );
+        connBadge.textContent = "🔊 Озвучиваем перевод...";
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+
+        const pcm24 = await synthesizeGeminiTts(translationText);
+        if (myTurnId !== activeTurnId || meetingStopped) return;
+
+        if (pcm24 && pcm24.length > 0) {
+          if (speakerSide === "guest" || singlePhoneMode) {
+            playPcm24k(pcm24, true);
+          } else {
+            playPcm24k(pcm24, false);
+            if (conn && conn.open) {
+              const wavBuffer = buildWavArrayBuffer(pcm24, 24000);
+              conn.send({ type: "AI_WAV_FOR_GUEST", wav: wavBuffer });
+            } else {
+              playPcm24k(pcm24, true);
+            }
+          }
+        } else {
+          const bcpLang = isTargetRussian ? "ru" : "th";
+          if (speakerSide === "guest" || singlePhoneMode || !conn || !conn.open) {
+            speakBrowserTts(translationText, bcpLang);
+          } else {
+            conn.send({ type: "AI_BROWSER_TTS_FOR_GUEST", text: translationText, lang: bcpLang });
+          }
+        }
+
+        setBottomStatus("hidden", "", true, 0);
+        connBadge.textContent = "🟢 Переводчик готов";
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+      } catch (err) {
+        console.error("Translation turn error:", err);
+        setBottomStatus(
+          "error",
+          "🔴 Ошибка связи с переводчиком. Пожалуйста, повторите фразу",
+          true,
+          5000
+        );
+        connBadge.textContent = "🔴 Ошибка: " + (err.message || "сбой сети");
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 truncate max-w-[240px]";
+      } finally {
+        if (myTurnId === activeTurnId) {
+          isTranslatingTurn = false;
+        }
+      }
+    }
+
+    // ================= ЗАХВАТ РЕЧИ ПРИ УДЕРЖАНИИ КНОПКИ =================
+    function stopCurrentPlayback() {
+      for (const src of activeOutputSources) {
+        try { src.stop(); } catch (e) {}
+      }
+      activeOutputSources = [];
+      if (typeof speechSynthesis !== "undefined") {
+        try { speechSynthesis.cancel(); } catch (e) {}
+      }
+      if (audioCtx) {
+        nextPlayTime = audioCtx.currentTime;
+      }
+    }
+
+    function mergeInt16Chunks(chunks) {
+      let totalLen = 0;
+      for (const c of chunks) totalLen += c.length;
+      const merged = new Int16Array(totalLen);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+      return merged;
+    }
+
+    function resetPttButtonAppearance() {
+      pttBtn.classList.remove("ptt-active");
+      pttBtn.className = "ptt-btn w-full h-24 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer";
+      if (role === "guest") {
+        pttLabel.textContent = "🎙 กดค้างไว้เพื่อพูด (Удерживайте для речи)";
+        pttSub.textContent = "พูดจนจบประโยคแล้วค่อยปล่อยนิ้ว (Отпустите после всей фразы)";
+      } else {
+        pttLabel.textContent = "🎙 УДЕРЖИВАЙТЕ, ЧТОБЫ ГОВОРИТЬ";
+        pttSub.textContent = "Говорите сколько нужно → отпустите для перевода";
+      }
+    }
+
+    async function startSpeaking() {
+      if (meetingStopped) return;
+      clearTimeout(releaseTailTimer);
+      if (isRecordingPTT) return;
+
+      try {
+        await initAudioEngine(true);
+        stopCurrentPlayback();
+        setBottomStatus("hidden", "", false, 0);
+
+        pttBufferedChunks = [];
+        isRecordingPTT = true;
+        pttStartTimestamp = Date.now();
+
+        pttBtn.classList.add("ptt-active");
+        pttBtn.className = "ptt-btn ptt-active w-full h-24 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer";
+
+        if (role === "guest") {
+          pttLabel.textContent = "🔴 กำลังบันทึกเสียง: 0.0 วินาที...";
+          pttSub.textContent = "พูดให้จบก่อน แล้วค่อยปล่อยปุ่มเพื่อแปล";
+        } else {
+          pttLabel.textContent = "🔴 ЗАПИСЬ РЕЧИ: 0.0 сек...";
+          pttSub.textContent = "AI ждёт, пока вы договорите и отпустите кнопку";
+        }
+
+        clearInterval(pttTimerInterval);
+        pttTimerInterval = setInterval(() => {
+          if (!isRecordingPTT) return;
+          const elapsed = ((Date.now() - pttStartTimestamp) / 1000).toFixed(1);
+          if (role === "guest") {
+            pttLabel.textContent = `🔴 กำลังบันทึกเสียง: ${elapsed} วินาที...`;
+          } else {
+            pttLabel.textContent = `🔴 ЗАПИСЬ РЕЧИ: ${elapsed} сек...`;
+          }
+        }, 100);
+      } catch (err) {
+        alert("Микрофон заблокирован браузером. Нажмите на значок замка слева от адреса сайта вверху экрана и выберите «Микрофон: Разрешить».");
+      }
+    }
+
+    function stopSpeaking() {
+      if (!isRecordingPTT) return;
+      clearInterval(pttTimerInterval);
+      resetPttButtonAppearance();
+
+      clearTimeout(releaseTailTimer);
+      releaseTailTimer = setTimeout(() => {
+        isRecordingPTT = false;
+        micLevelBar.style.width = "0%";
+
+        const fullUtterance = mergeInt16Chunks(pttBufferedChunks);
+        pttBufferedChunks = [];
+
+        if (fullUtterance.length < 2400) {
+          setBottomStatus(
+            "warn",
+            "⚠️ Слишком короткое нажатие — удерживайте кнопку, пока говорите фразу (กดค้างไว้ขณะพูด)",
+            false,
+            3500
+          );
+          return;
+        }
+
+        if (role === "host") {
+          processCompleteTurn(fullUtterance, "host");
+        } else if (conn && conn.open) {
+          setBottomStatus(
+            "loading",
+            "Речь принята, идёт перевод... (ได้รับเสียงแล้ว กำลังแปล...)",
+            false,
+            0
+          );
+          sendBufferedUtteranceToHost(fullUtterance);
+        } else {
+          setBottomStatus(
+            "error",
+            "🔴 Нет связи с главным телефоном — подождите пару секунд и повторите",
+            false,
+            4000
+          );
+        }
+      }, 350);
+    }
+
+    function sendBufferedUtteranceToHost(fullPcm16) {
+      if (!conn || !conn.open) return;
+      const CHUNK_SIZE = 16000;
+      for (let offset = 0; offset < fullPcm16.length; offset += CHUNK_SIZE) {
+        const slice = fullPcm16.slice(offset, Math.min(offset + CHUNK_SIZE, fullPcm16.length));
+        conn.send({ type: "GUEST_AUDIO_CHUNK", pcm: slice.buffer });
+      }
+      conn.send({ type: "GUEST_AUDIO_COMMIT" });
+    }
+
+    pttBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (pttBtn.setPointerCapture && e.pointerId !== undefined) {
+        try { pttBtn.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      startSpeaking();
+    });
+    pttBtn.addEventListener("pointerup", (e) => { e.preventDefault(); stopSpeaking(); });
+    pttBtn.addEventListener("pointercancel", stopSpeaking);
+
+    // ================= АУДИО УТИЛИТЫ =================
+    function downsampleTo16k(buffer, sampleRate) {
+      if (sampleRate === 16000) {
+        const res = new Int16Array(buffer.length);
+        for (let i = 0; i < buffer.length; i++) res[i] = Math.max(-1, Math.min(1, buffer[i])) * 0x7FFF;
+        return res;
+      }
+      const ratio = sampleRate / 16000;
+      const newLength = Math.round(buffer.length / ratio);
+      const result = new Int16Array(newLength);
+      let offsetResult = 0;
+      let offsetBuffer = 0;
+      while (offsetResult < result.length) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+        let accum = 0, count = 0;
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+          accum += buffer[i];
+          count++;
+        }
+        const sample = count > 0 ? accum / count : 0;
+        result[offsetResult] = Math.max(-1, Math.min(1, sample)) * 0x7FFF;
+        offsetResult++;
+        offsetBuffer = nextOffsetBuffer;
+      }
+      return result;
+    }
+
+    function playPcm24k(int16Arr, playToLocalHeadphones) {
+      if (!audioCtx) return;
+      const float32 = new Float32Array(int16Arr.length);
+      for (let i = 0; i < int16Arr.length; i++) float32[i] = int16Arr[i] / 32768.0;
+
+      const audioBuf = audioCtx.createBuffer(1, float32.length, 24000);
+      audioBuf.getChannelData(0).set(float32);
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuf;
+
+      if (playToLocalHeadphones) source.connect(audioCtx.destination);
+      if (mixerDest) source.connect(mixerDest);
+
+      activeOutputSources.push(source);
+      source.onended = () => {
+        const idx = activeOutputSources.indexOf(source);
+        if (idx !== -1) activeOutputSources.splice(idx, 1);
+      };
+
+      const now = audioCtx.currentTime;
+      if (nextPlayTime < now) nextPlayTime = now;
+      source.start(nextPlayTime);
+      nextPlayTime += audioBuf.duration;
+    }
+
+    function playIncomingGuestToMixer(int16Arr) {
+      if (!audioCtx || !mixerDest) return;
+      const float32 = new Float32Array(int16Arr.length);
+      for (let i = 0; i < int16Arr.length; i++) float32[i] = int16Arr[i] / 32768.0;
+      const audioBuf = audioCtx.createBuffer(1, float32.length, 16000);
+      audioBuf.getChannelData(0).set(float32);
+      const src = audioCtx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(mixerDest);
+
+      const now = audioCtx.currentTime;
+      if (nextGuestMixTime < now) nextGuestMixTime = now;
+      src.start(nextGuestMixTime);
+      nextGuestMixTime += audioBuf.duration;
+    }
+
+    function base64ToInt16(b64) {
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new Int16Array(bytes.buffer);
+    }
+
+    // ================= ПРОТОКОЛ И ЭКСПОРТ =================
+    function appendMessage(speaker, text, broadcastToGuest) {
+      if (transcriptLog.length === 0) transcriptBox.innerHTML = "";
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      transcriptLog.push({ time, speaker, text });
+
+      const div = document.createElement("div");
+      div.className = "bg-slate-900/90 border border-slate-800 rounded-xl p-3";
+      div.innerHTML = `<div class="text-[11px] text-emerald-400 font-semibold mb-0.5">${speaker} • ${time}</div><div class="text-slate-100 leading-snug">${text}</div>`;
+      transcriptBox.appendChild(div);
+      transcriptBox.scrollTop = transcriptBox.scrollHeight;
+
+      if (role === "host") {
+        savePersistentSession();
+        if (broadcastToGuest && conn && conn.open) {
+          conn.send({ type: "TRANSCRIPT_SYNC", speaker, text });
+        }
+      } else {
+        saveGuestTranscript();
+      }
+    }
+
+    function downloadTranscriptTxt() {
+      const content = transcriptLog.map((item) => "[" + item.time + "] " + item.speaker + ":\n" + item.text + "\n").join("\n");
+      const blob = new Blob([content || "Диалог пуст"], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `protocol-RU-TH-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+    }
+
+    function finishMeetingAndShare() {
+      meetingStopped = true;
+      stopCurrentPlayback();
+      setBottomStatus("hidden", "", true, 0);
+      clearTimeout(peerReconnectTimer);
+      clearPersistentSession();
+
+      try {
+        history.replaceState(null, "", window.location.pathname);
+      } catch (e) {}
+
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+      connBadge.textContent = "🏁 Встреча завершена";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300";
+
+      if (N8N_WEBHOOK_URL && transcriptLog.length > 0) {
+        fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            meeting_date: new Date().toISOString(),
+            pair: "RU-TH",
+            transcript: transcriptLog
+          })
+        }).catch(() => {});
+      }
+    }
+
+    document.getElementById("downloadTxtBtn").addEventListener("click", downloadTranscriptTxt);
+    document.getElementById("downloadTxtBtn2").addEventListener("click", downloadTranscriptTxt);
+
+    document.getElementById("finishRecBtn").addEventListener("click", () => {
+      if (role === "host") {
+        finishMeetingAndShare();
+      } else if (conn && conn.open) {
+        conn.send({ type: "REQUEST_FINISH" });
+      }
+    });
+  </script>
+</body>
+</html>
