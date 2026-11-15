@@ -480,7 +480,7 @@
       for (const item of items) {
         const div = document.createElement("div");
         div.className = "bg-slate-900/90 border border-slate-800 rounded-xl p-3";
-        div.innerHTML = `<div class="text-[11px] text-emerald-400 font-semibold mb-0.5">${item.speaker} • ${item.time}</div><div class="text-slate-100 leading-snug">${item.text}</div>`;
+        div.innerHTML = `<div class="text-[11px] text-emerald-400 font-semibold mb-0.5">${escapeHTML(item.speaker)} • ${escapeHTML(item.time)}</div><div class="text-slate-100 leading-snug">${escapeHTML(item.text)}</div>`;
         transcriptBox.appendChild(div);
       }
       transcriptBox.scrollTop = transcriptBox.scrollHeight;
@@ -2022,7 +2022,7 @@ ${glossary ? "Подсказка для написания имён и терм�
             4000
           );
         }
-      }, 350);
+      }, 150);
     }
 
     function sendBufferedUtteranceToHost(fullPcm16) {
@@ -2127,7 +2127,7 @@ ${glossary ? "Подсказка для написания имён и терм�
         String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
 
       const looksLikeWav =
-        /audio\\/(wav|x-wav)/i.test(mimeType) ||
+        /audio\/(wav|x-wav)/i.test(mimeType) ||
         (bytes.length >= 12 && readTag(0) === "RIFF" && readTag(8) === "WAVE");
 
       if (!looksLikeWav) {
@@ -2199,6 +2199,12 @@ ${glossary ? "Подсказка для написания имён и терм�
     }
 
     // ================= ПРОТОКОЛ И ЭКСПОРТ =================
+    function escapeHTML(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
     function appendMessage(speaker, text, broadcastToGuest) {
       if (transcriptLog.length === 0) transcriptBox.innerHTML = "";
       const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -2206,7 +2212,7 @@ ${glossary ? "Подсказка для написания имён и терм�
 
       const div = document.createElement("div");
       div.className = "bg-slate-900/90 border border-slate-800 rounded-xl p-3";
-      div.innerHTML = `<div class="text-[11px] text-emerald-400 font-semibold mb-0.5">${speaker} • ${time}</div><div class="text-slate-100 leading-snug">${text}</div>`;
+      div.innerHTML = `<div class="text-[11px] text-emerald-400 font-semibold mb-0.5">${escapeHTML(speaker)} • ${time}</div><div class="text-slate-100 leading-snug">${escapeHTML(text)}</div>`;
       transcriptBox.appendChild(div);
       transcriptBox.scrollTop = transcriptBox.scrollHeight;
 
