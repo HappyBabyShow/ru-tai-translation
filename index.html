@@ -41,6 +41,9 @@
       <span class="font-semibold tracking-tight text-sm sm:text-base text-emerald-400">
         RuTai Translated
       </span>
+      <span id="headerLangPairBadge" class="text-[11px] bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700/80 font-medium">
+        🇷🇺 RU ↔ 🇹🇭 TH
+      </span>
     </div>
     <div id="connBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 truncate max-w-[235px]">
       Готов к встрече
@@ -80,15 +83,35 @@
         <div id="magicLinkPreview" class="hidden text-[11px] text-slate-400 break-all bg-slate-950/80 p-2 rounded-lg border border-slate-800"></div>
       </div>
 
+      <!-- ВЫБОР ЯЗЫКОВОЙ ПАРЫ (ВАРИАНТ 1: ДВА СЕЛЕКТОРА + КНОПКА РЕВЕРСА) -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-slate-300 font-medium">🌐 Направление перевода (работает в обе стороны)</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-2 items-end">
+          <div>
+            <label for="lang1Select" class="block text-[11px] text-slate-400 mb-1">Ваш язык (Телефон 1)</label>
+            <select id="lang1Select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+          <button id="swapLangsBtn" type="button" title="Поменять языки местами" class="h-[42px] px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-emerald-400 font-bold text-base border border-slate-700 flex items-center justify-center cursor-pointer transition-transform active:scale-95">
+            ⇄
+          </button>
+          <div>
+            <label for="lang2Select" class="block text-[11px] text-slate-400 mb-1">Язык собеседника (Телефон 2)</label>
+            <select id="lang2Select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label class="block text-xs text-slate-400 mb-1.5">
           Контекст и ключевые слова встречи <span class="text-slate-500">(необязательно)</span>
         </label>
-        <textarea id="glossaryInput" rows="2" placeholder="Например: Имена участников, названия компаний, условия договора, суммы в батах..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500"></textarea>
+        <textarea id="glossaryInput" rows="2" placeholder="Например: Имена участников, названия компаний, условия договора, суммы..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500"></textarea>
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1.5">Стиль речи при переводе на тайский</label>
+        <label id="styleSelectLabel" class="block text-xs text-slate-400 mb-1.5">Стиль речи при переводе</label>
         <select id="styleSelect" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
           <option value="business">Деловой (вежливый официальный)</option>
           <option value="professional">Профессиональный (точный с терминами)</option>
@@ -123,7 +146,7 @@
           </h2>
           <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed">
             Нажмите кнопку ниже один раз, чтобы сразу включить микрофон и громкий звук переводчика.<br/>
-            <span class="text-emerald-400 font-medium">(แตะปุ่มด้านล่างเพื่อเปิดไมโครโฟนและเสียงแปลภาษา)</span>
+            <span id="guestOverlaySubHint" class="text-emerald-400 font-medium">(แตะปุ่มด้านล่างเพื่อเปิดไมโครโฟนและเสียงแปลภาษา)</span>
           </p>
         </div>
         <button id="joinMeetingGuestBtn" type="button" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-extrabold py-4 rounded-xl text-base shadow-lg shadow-emerald-500/25 cursor-pointer">
@@ -268,13 +291,488 @@
     const CIPHER_SALT = "PhuketLive2026!Secret";
     const SESSION_STORAGE_KEY = "ru_th_persistent_session_v3";
     const API_KEY_STORAGE_KEY = "gemini_live_ru_th_key";
+    const LANG1_STORAGE_KEY = "translator_lang1";
+    const LANG2_STORAGE_KEY = "translator_lang2";
     const N8N_WEBHOOK_URL = "";
+
+    // ================= 1. ЕДИНЫЙ СПРАВОЧНИК ЯЗЫКОВ (LANGUAGES) =================
+    const LANGUAGES = {
+      ru: {
+        code: "ru",
+        bcp47: "ru-RU",
+        flag: "🇷🇺",
+        nameRu: "Русский",
+        nameAcc: "русский",
+        promptName: "русский",
+        warmPhrases: ["Здравствуйте", "Спасибо", "Да, конечно", "Приятно познакомиться"],
+        ui: {
+          joinHint: "Нажмите кнопку ниже, чтобы включить микрофон и звук переводчика",
+          joinBtn: "Начать работу",
+          pttHold: "Удерживайте для речи",
+          pttSub: "Говорите до конца фразы и отпустите кнопку",
+          pttRec: "Запись речи",
+          pttSec: "сек",
+          pttRecSub: "Договорите фразу до конца и отпустите кнопку",
+          translating: "Речь принята, идёт перевод...",
+          speaking: "Озвучиваем перевод...",
+          repeatPlease: "Речь не опознана, повторите ещё раз",
+          tooQuiet: "Слишком тихо, повторите громче",
+          tooShort: "Удерживайте кнопку во время речи"
+        }
+      },
+      th: {
+        code: "th",
+        bcp47: "th-TH",
+        flag: "🇹🇭",
+        nameRu: "Тайский",
+        nameAcc: "тайский",
+        promptName: "тайский",
+        warmPhrases: [
+          "สวัสดีครับ", "ขอบคุณครับ", "ได้ครับ", "ไม่เป็นไรครับ",
+          "โอเคครับ", "ยินดีที่ได้รู้จักครับ", "กรุณาพูดใหม่อีกครั้ง"
+        ],
+        ui: {
+          joinHint: "แตะปุ่มด้านล่างเพื่อเปิดไมโครโฟนและเสียงแปลภาษา",
+          joinBtn: "เริ่มใช้งาน",
+          pttHold: "กดค้างไว้เพื่อพูด",
+          pttSub: "พูดจนจบประโยคแล้วค่อยปล่อยนิ้ว",
+          pttRec: "กำลังบันทึกเสียง",
+          pttSec: "วินาที",
+          pttRecSub: "พูดให้จบก่อน แล้วค่อยปล่อยปุ่มเพื่อแปล",
+          translating: "ได้รับเสียงแล้ว กำลังแปล...",
+          speaking: "กำลังเล่นเสียงแปล...",
+          repeatPlease: "พูดไม่ชัด กรุณาพูดใหม่อีกครั้ง",
+          tooQuiet: "เสียงเบาเกินไป กรุณาพูดใหม่อีกครั้ง",
+          tooShort: "กดค้างไว้ขณะพูด"
+        }
+      },
+      en: {
+        code: "en",
+        bcp47: "en-US",
+        flag: "🇬🇧",
+        nameRu: "Английский",
+        nameAcc: "английский",
+        promptName: "английский",
+        warmPhrases: ["Hello", "Thank you", "Nice to meet you", "Could you please repeat that?"],
+        ui: {
+          joinHint: "Tap the button below to enable microphone and translator audio",
+          joinBtn: "Join & Start",
+          pttHold: "Hold to speak",
+          pttSub: "Finish your sentence, then release to translate",
+          pttRec: "Recording",
+          pttSec: "sec",
+          pttRecSub: "Keep holding until you finish speaking",
+          translating: "Speech received, translating...",
+          speaking: "Playing translation...",
+          repeatPlease: "Speech not recognized, please repeat",
+          tooQuiet: "Too quiet, please speak louder",
+          tooShort: "Hold the button while speaking"
+        }
+      },
+      zh: {
+        code: "zh",
+        bcp47: "zh-CN",
+        flag: "🇨🇳",
+        nameRu: "Китайский (Путунхуа)",
+        nameAcc: "китайский",
+        promptName: "китайский (путунхуа, упрощённые иероглифы)",
+        warmPhrases: ["您好", "谢谢", "没问题", "很高兴认识您", "请再说一遍"],
+        ui: {
+          joinHint: "请点击下方按钮开启麦克风和翻译语音",
+          joinBtn: "开始使用",
+          pttHold: "按住说话",
+          pttSub: "说完一整句话后再松开手指",
+          pttRec: "正在录音",
+          pttSec: "秒",
+          pttRecSub: "请说完后再松开按钮进行翻译",
+          translating: "已收到语音，正在翻译...",
+          speaking: "正在播放翻译...",
+          repeatPlease: "未识别到语音，请再说一遍",
+          tooQuiet: "声音太小，请再说一遍",
+          tooShort: "说话时请按住按钮"
+        }
+      },
+      tr: {
+        code: "tr",
+        bcp47: "tr-TR",
+        flag: "🇹🇷",
+        nameRu: "Турецкий",
+        nameAcc: "турецкий",
+        promptName: "турецкий",
+        warmPhrases: ["Merhaba", "Teşekkür ederim", "Memnun oldum", "Lütfen tekrar eder misiniz"],
+        ui: {
+          joinHint: "Mikrofonu ve çeviri sesini açmak için aşağıdaki düğmeye dokunun",
+          joinBtn: "Başlat",
+          pttHold: "Konuşmak için basılı tutun",
+          pttSub: "Cümlenizi bitirin, ardından çeviri için bırakın",
+          pttRec: "Ses kaydediliyor",
+          pttSec: "sn",
+          pttRecSub: "Konuşmanız bitene kadar basılı tutun",
+          translating: "Ses alındı, çevriliyor...",
+          speaking: "Çeviri seslendiriliyor...",
+          repeatPlease: "Ses anlaşılamadı, lütfen tekrar edin",
+          tooQuiet: "Ses çok kısık, lütfen tekrar edin",
+          tooShort: "Konuşurken düğmeyi basılı tutun"
+        }
+      },
+      ar: {
+        code: "ar",
+        bcp47: "ar-SA",
+        flag: "🇦🇪",
+        nameRu: "Арабский",
+        nameAcc: "арабский",
+        promptName: "современный стандартный арабский",
+        warmPhrases: ["مرحباً", "شكراً جزيلاً", "تشرفت بمعرفتك", "من فضلك كرر مرة أخرى"],
+        ui: {
+          joinHint: "اضغط على الزر أدناه لتفعيل الميكروفون وصوت المترجم",
+          joinBtn: "بدء الاستخدام",
+          pttHold: "اضغط مطولاً للتحدث",
+          pttSub: "أكمل جملتك ثم اترك الزر للترجمة",
+          pttRec: "جاري التسجيل",
+          pttSec: "ثانية",
+          pttRecSub: "استمر بالضغط حتى تنهي كلامك",
+          translating: "تم استلام الصوت، جاري الترجمة...",
+          speaking: "جاري تشغيل الترجمة...",
+          repeatPlease: "لم يتم التعرف على الكلام، يرجى الإعادة",
+          tooQuiet: "الصوت منخفض جداً، يرجى الإعادة",
+          tooShort: "اضغط مطولاً أثناء التحدث"
+        }
+      },
+      es: {
+        code: "es",
+        bcp47: "es-ES",
+        flag: "🇪🇸",
+        nameRu: "Испанский",
+        nameAcc: "испанский",
+        promptName: "испанский",
+        warmPhrases: ["Hola, buenos días", "Muchas gracias", "Mucho gusto"],
+        ui: {
+          joinHint: "Toque el botón de abajo para activar el micrófono y el audio",
+          joinBtn: "Comenzar",
+          pttHold: "Mantenga pulsado para hablar",
+          pttSub: "Termine su frase y suelte para traducir",
+          pttRec: "Grabando voz",
+          pttSec: "seg",
+          pttRecSub: "Suelte el botón cuando termine de hablar",
+          translating: "Voz recibida, traduciendo...",
+          speaking: "Reproduciendo traducción...",
+          repeatPlease: "No se reconoció la voz, repita por favor",
+          tooQuiet: "Demasiado bajo, hable más alto por favor",
+          tooShort: "Mantenga pulsado el botón mientras habla"
+        }
+      },
+      pt: {
+        code: "pt",
+        bcp47: "pt-BR",
+        flag: "🇵🇹",
+        nameRu: "Португальский",
+        nameAcc: "португальский",
+        promptName: "португальский",
+        warmPhrases: ["Olá, bom dia", "Muito obrigado", "Prazer em conhecê-lo"],
+        ui: {
+          joinHint: "Toque no botão abaixo para ativar o microfone e o som",
+          joinBtn: "Começar",
+          pttHold: "Segure para falar",
+          pttSub: "Termine a frase e solte para traduzir",
+          pttRec: "Gravando voz",
+          pttSec: "seg",
+          pttRecSub: "Solte o botão quando terminar de falar",
+          translating: "Voz recebida, traduzindo...",
+          speaking: "Reproduzindo tradução...",
+          repeatPlease: "Fala não reconhecida, repita por favor",
+          tooQuiet: "Muito baixo, fale mais alto por favor",
+          tooShort: "Segure o botão enquanto fala"
+        }
+      },
+      de: {
+        code: "de",
+        bcp47: "de-DE",
+        flag: "🇩🇪",
+        nameRu: "Немецкий",
+        nameAcc: "немецкий",
+        promptName: "немецкий",
+        warmPhrases: ["Guten Tag", "Vielen Dank", "Freut mich, Sie kennenzulernen"],
+        ui: {
+          joinHint: "Tippen Sie unten, um Mikrofon und Übersetzungston zu aktivieren",
+          joinBtn: "Starten",
+          pttHold: "Gedrückt halten zum Sprechen",
+          pttSub: "Satz beenden und zum Übersetzen loslassen",
+          pttRec: "Aufnahme läuft",
+          pttSec: "Sek",
+          pttRecSub: "Erst loslassen, wenn Sie fertig gesprochen haben",
+          translating: "Sprache empfangen, übersetze...",
+          speaking: "Übersetzung wird abgespielt...",
+          repeatPlease: "Nicht verstanden, bitte wiederholen",
+          tooQuiet: "Zu leise, bitte lauter sprechen",
+          tooShort: "Beim Sprechen gedrückt halten"
+        }
+      },
+      fr: {
+        code: "fr",
+        bcp47: "fr-FR",
+        flag: "🇫🇷",
+        nameRu: "Французский",
+        nameAcc: "французский",
+        promptName: "французский",
+        warmPhrases: ["Bonjour", "Merci beaucoup", "Enchanté de vous rencontrer"],
+        ui: {
+          joinHint: "Appuyez ci-dessous pour activer le micro et le son du traducteur",
+          joinBtn: "Commencer",
+          pttHold: "Maintenez pour parler",
+          pttSub: "Terminez votre phrase puis relâchez pour traduire",
+          pttRec: "Enregistrement",
+          pttSec: "sec",
+          pttRecSub: "Relâchez le bouton une fois votre phrase terminée",
+          translating: "Voix reçue, traduction en cours...",
+          speaking: "Lecture de la traduction...",
+          repeatPlease: "Parole non reconnue, veuillez répéter",
+          tooQuiet: "Trop faible, parlez plus fort s'il vous plaît",
+          tooShort: "Maintenez le bouton pendant que vous parlez"
+        }
+      },
+      it: {
+        code: "it",
+        bcp47: "it-IT",
+        flag: "🇮🇹",
+        nameRu: "Итальянский",
+        nameAcc: "итальянский",
+        promptName: "итальянский",
+        warmPhrases: ["Buongiorno", "Grazie mille", "Piacere di conoscerla"],
+        ui: {
+          joinHint: "Tocca il pulsante qui sotto per attivare microfono e audio",
+          joinBtn: "Inizia",
+          pttHold: "Tieni premuto per parlare",
+          pttSub: "Completa la frase e rilascia per tradurre",
+          pttRec: "Registrazione",
+          pttSec: "sec",
+          pttRecSub: "Rilascia il pulsante quando hai finito di parlare",
+          translating: "Audio ricevuto, traduzione in corso...",
+          speaking: "Riproduzione traduzione...",
+          repeatPlease: "Voce non riconosciuta, ripeti per favore",
+          tooQuiet: "Troppo basso, parla più forte",
+          tooShort: "Tieni premuto mentre parli"
+        }
+      },
+      ko: {
+        code: "ko",
+        bcp47: "ko-KR",
+        flag: "🇰🇷",
+        nameRu: "Корейский",
+        nameAcc: "корейский",
+        promptName: "корейский",
+        warmPhrases: ["안녕하세요", "감사합니다", "만나서 반갑습니다"],
+        ui: {
+          joinHint: "아래 버튼을 눌러 마이크와 통역 음성을 켜세요",
+          joinBtn: "시작하기",
+          pttHold: "누른 상태에서 말하기",
+          pttSub: "문장을 끝까지 말한 후 손을 떼면 통역됩니다",
+          pttRec: "음성 녹음 중",
+          pttSec: "초",
+          pttRecSub: "말씀을 마친 후 버튼을 떼어주세요",
+          translating: "음성 수신 완료, 통역 중...",
+          speaking: "통역 음성 재생 중...",
+          repeatPlease: "음성이 인식되지 않았습니다. 다시 말씀해 주세요",
+          tooQuiet: "소리가 너무 작습니다. 다시 말씀해 주세요",
+          tooShort: "말하는 동안 버튼을 누르고 계세요"
+        }
+      },
+      ja: {
+        code: "ja",
+        bcp47: "ja-JP",
+        flag: "🇯🇵",
+        nameRu: "Японский",
+        nameAcc: "японский",
+        promptName: "японский",
+        warmPhrases: ["こんにちは", "ありがとうございます", "よろしくお願いいたします"],
+        ui: {
+          joinHint: "下のボタンを押してマイクと通訳音声を有効にしてください",
+          joinBtn: "開始する",
+          pttHold: "長押しして話す",
+          pttSub: "最後まで話してから指を離すと通訳されます",
+          pttRec: "録音中",
+          pttSec: "秒",
+          pttRecSub: "話し終わってからボタンを離してください",
+          translating: "音声を受信しました。通訳中...",
+          speaking: "通訳を再生中...",
+          repeatPlease: "聞き取れませんでした。もう一度お話しください",
+          tooQuiet: "声が小さすぎます。もう一度お話しください",
+          tooShort: "ボタンを押したまま話してください"
+        }
+      },
+      vi: {
+        code: "vi",
+        bcp47: "vi-VN",
+        flag: "🇻🇳",
+        nameRu: "Вьетнамский",
+        nameAcc: "вьетнамский",
+        promptName: "вьетнамский",
+        warmPhrases: ["Xin chào", "Cảm ơn bạn", "Rất vui được gặp bạn"],
+        ui: {
+          joinHint: "Nhấn nút bên dưới để bật micrô và âm thanh phiên dịch",
+          joinBtn: "Bắt đầu",
+          pttHold: "Giữ để nói",
+          pttSub: "Nói hết câu rồi thả tay để dịch",
+          pttRec: "Đang ghi âm",
+          pttSec: "giây",
+          pttRecSub: "Nói xong rồi mới thả nút để dịch",
+          translating: "Đã nhận giọng nói, đang dịch...",
+          speaking: "Đang phát bản dịch...",
+          repeatPlease: "Không nghe rõ, vui lòng nói lại",
+          tooQuiet: "Quá nhỏ, vui lòng nói to hơn",
+          tooShort: "Giữ nút trong khi nói"
+        }
+      },
+      id: {
+        code: "id",
+        bcp47: "id-ID",
+        flag: "🇮🇩",
+        nameRu: "Индонезийский",
+        nameAcc: "индонезийский",
+        promptName: "индонезийский",
+        warmPhrases: [],
+        ui: {
+          joinHint: "Ketuk tombol di bawah untuk mengaktifkan mikrofon dan suara",
+          joinBtn: "Mulai",
+          pttHold: "Tahan untuk berbicara",
+          pttSub: "Selesaikan kalimat lalu lepaskan untuk menerjemahkan",
+          pttRec: "Merekam suara",
+          pttSec: "dtk",
+          pttRecSub: "Lepaskan tombol setelah selesai berbicara",
+          translating: "Suara diterima, menerjemahkan...",
+          speaking: "Memutar terjemahan...",
+          repeatPlease: "Suara tidak jelas, silakan ulangi",
+          tooQuiet: "Terlalu pelan, silakan bicara lebih keras",
+          tooShort: "Tahan tombol saat berbicara"
+        }
+      },
+      hi: {
+        code: "hi",
+        bcp47: "hi-IN",
+        flag: "🇮🇳",
+        nameRu: "Хинди",
+        nameAcc: "хинди",
+        promptName: "хинди",
+        warmPhrases: [],
+        ui: {
+          joinHint: "माइक्रोफ़ोन और अनुवाद ऑडियो चालू करने के लिए नीचे दबाएं",
+          joinBtn: "शुरू करें",
+          pttHold: "बोलने के लिए दबाए रखें",
+          pttSub: "अपना वाक्य पूरा करें, फिर अनुवाद के लिए छोड़ें",
+          pttRec: "रिकॉर्डिंग जारी",
+          pttSec: "सेकंड",
+          pttRecSub: "बोलना समाप्त करने के बाद ही बटन छोड़ें",
+          translating: "आवाज़ मिल गई, अनुवाद हो रहा है...",
+          speaking: "अनुवाद सुनाया जा रहा है...",
+          repeatPlease: "आवाज़ स्पष्ट नहीं है, कृपया दोबारा बोलें",
+          tooQuiet: "आवाज़ बहुत धीमी है, कृपया ज़ोर से बोलें",
+          tooShort: "बोलते समय बटन दबाए रखें"
+        }
+      },
+      he: {
+        code: "he",
+        bcp47: "he-IL",
+        flag: "🇮🇱",
+        nameRu: "Иврит",
+        nameAcc: "иврит",
+        promptName: "иврит",
+        warmPhrases: [],
+        ui: {
+          joinHint: "לחץ על הכפתור למטה להפעלת המיקרופון והשמע",
+          joinBtn: "התחל",
+          pttHold: "החזק כדי לדבר",
+          pttSub: "סיים את המשפט ושחרר לתרגום",
+          pttRec: "מקליט",
+          pttSec: "שנ׳",
+          pttRecSub: "שחרר את הכפתור בסיום המשפט",
+          translating: "הדיבור התקבל, מתרגם...",
+          speaking: "משמיע תרגום...",
+          repeatPlease: "הדיבור לא זוהה, נא לחזור שנית",
+          tooQuiet: "חלש מדי, נא לדבר חזק יותר",
+          tooShort: "החזק את הכפתור בזמן הדיבור"
+        }
+      },
+      kk: {
+        code: "kk",
+        bcp47: "kk-KZ",
+        flag: "🇰🇿",
+        nameRu: "Казахский",
+        nameAcc: "казахский",
+        promptName: "казахский",
+        warmPhrases: [],
+        ui: {
+          joinHint: "Микрофон мен аудармашы дыбысын қосу үшін төмендегі түймені басыңыз",
+          joinBtn: "Бастау",
+          pttHold: "Сөйлеу үшін басып тұрыңыз",
+          pttSub: "Сөйлемді аяқтап, аудару үшін жіберіңіз",
+          pttRec: "Жазылуда",
+          pttSec: "сек",
+          pttRecSub: "Сөзіңізді аяқтаған соң түймені жіберіңіз",
+          translating: "Дауыс қабылданды, аударылуда...",
+          speaking: "Аударма дыбысталуда...",
+          repeatPlease: "Сөз танылмады, қайталап жіберіңіз",
+          tooQuiet: "Тым ақырын, қаттырақ сөйлеңіз",
+          tooShort: "Сөйлеген кезде түймені басып тұрыңыз"
+        }
+      },
+      uz: {
+        code: "uz",
+        bcp47: "uz-UZ",
+        flag: "🇺🇿",
+        nameRu: "Узбекский",
+        nameAcc: "узбекский",
+        promptName: "узбекский",
+        warmPhrases: [],
+        ui: {
+          joinHint: "Mikrofon va tarjimon ovozini yoqish uchun quyidagi tugmani bosing",
+          joinBtn: "Boshlash",
+          pttHold: "Gapirish uchun bosib turing",
+          pttSub: "Gapni tugatib, tarjima uchun qo'yib yuboring",
+          pttRec: "Yozib olinmoqda",
+          pttSec: "soniya",
+          pttRecSub: "Gapirib bo'lgach tugmani qo'yib yuboring",
+          translating: "Ovoz qabul qilindi, tarjima qilinmoqda...",
+          speaking: "Tarjima eshittirilmoqda...",
+          repeatPlease: "Nutq aniqlanmadi, iltimos qaytaring",
+          tooQuiet: "Juda past ovoz, balandroq gapiring",
+          tooShort: "Gapirayotganda tugmani bosib turing"
+        }
+      },
+      pl: {
+        code: "pl",
+        bcp47: "pl-PL",
+        flag: "🇵🇱",
+        nameRu: "Польский",
+        nameAcc: "польский",
+        promptName: "польский",
+        warmPhrases: [],
+        ui: {
+          joinHint: "Kliknij ниже, aby włączyć mikrofon i dźwięk tłumacza",
+          joinBtn: "Rozpocznij",
+          pttHold: "Przytrzymaj, aby mówić",
+          pttSub: "Dokończ zdanie i puść, aby przetłumaczyć",
+          pttRec: "Nagrywanie",
+          pttSec: "sek",
+          pttRecSub: "Puść przycisk po zakończeniu wypowiedzi",
+          translating: "Odebrano mowę, tłumaczenie...",
+          speaking: "Odtwarzanie tłumaczenia...",
+          repeatPlease: "Nie rozpoznano mowy, proszę powtórzyć",
+          tooQuiet: "Zbyt cicho, proszę mówić głośniej",
+          tooShort: "Przytrzymaj przycisk podczas mówienia"
+        }
+      }
+    };
 
     const urlParams = new URLSearchParams(window.location.search);
     const guestRoomParam = urlParams.get("room");
     const hostRoomParam = urlParams.get("host");
+    const urlLang1Param = urlParams.get("l1");
+    const urlLang2Param = urlParams.get("l2");
     const forceAdminParam = urlParams.get("admin") === "1";
     const role = guestRoomParam ? "guest" : "host";
+
+    let lang1 = (urlLang1Param && LANGUAGES[urlLang1Param]) ? urlLang1Param : "ru";
+    let lang2 = (urlLang2Param && LANGUAGES[urlLang2Param]) ? urlLang2Param : "th";
+    if (lang1 === lang2) lang2 = (lang1 === "ru") ? "th" : "ru";
 
     let activeApiKey = "";
     let isKeyLoading = false;
@@ -342,6 +840,11 @@
     const apiKeyInput = document.getElementById("apiKeyInput");
     const startHostBtn = document.getElementById("startHostBtn");
     const resumeAudioBanner = document.getElementById("resumeAudioBanner");
+    const lang1Select = document.getElementById("lang1Select");
+    const lang2Select = document.getElementById("lang2Select");
+    const swapLangsBtn = document.getElementById("swapLangsBtn");
+    const headerLangPairBadge = document.getElementById("headerLangPairBadge");
+    const styleSelectLabel = document.getElementById("styleSelectLabel");
 
     const processingStatusBar = document.getElementById("processingStatusBar");
     const processingSpinner = document.getElementById("processingSpinner");
@@ -358,6 +861,115 @@
       "gemini-3.8-flash-lite-tts",
       "gemini-2.5-flash-preview-tts"
     ];
+
+    function getLangObj(code) {
+      return LANGUAGES[code] || LANGUAGES.en;
+    }
+
+    function normalizeLangCode(rawCode) {
+      if (!rawCode) return "";
+      const clean = String(rawCode).trim().toLowerCase().split(/[-_]/)[0];
+      if (LANGUAGES[clean]) return clean;
+      for (const [k, v] of Object.entries(LANGUAGES)) {
+        if (clean === v.nameRu.toLowerCase() || clean === v.promptName.toLowerCase()) return k;
+      }
+      return clean;
+    }
+
+    function initLanguageSelectors() {
+      if (!urlLang1Param) {
+        try {
+          const s1 = localStorage.getItem(LANG1_STORAGE_KEY);
+          if (s1 && LANGUAGES[s1]) lang1 = s1;
+        } catch (e) {}
+      }
+      if (!urlLang2Param) {
+        try {
+          const s2 = localStorage.getItem(LANG2_STORAGE_KEY);
+          if (s2 && LANGUAGES[s2]) lang2 = s2;
+        } catch (e) {}
+      }
+      if (lang1 === lang2) lang2 = (lang1 === "ru") ? "th" : "ru";
+
+      lang1Select.innerHTML = "";
+      lang2Select.innerHTML = "";
+      for (const [code, info] of Object.entries(LANGUAGES)) {
+        const opt1 = document.createElement("option");
+        opt1.value = code;
+        opt1.textContent = `${info.flag} ${info.nameRu}`;
+        lang1Select.appendChild(opt1);
+
+        const opt2 = document.createElement("option");
+        opt2.value = code;
+        opt2.textContent = `${info.flag} ${info.nameRu}`;
+        lang2Select.appendChild(opt2);
+      }
+      lang1Select.value = lang1;
+      lang2Select.value = lang2;
+      syncLanguageUiLabels();
+
+      lang1Select.addEventListener("change", () => {
+        const newL1 = lang1Select.value;
+        if (newL1 === lang2) {
+          lang2 = lang1;
+          lang2Select.value = lang2;
+        }
+        lang1 = newL1;
+        saveLanguageSelection();
+        syncLanguageUiLabels();
+      });
+
+      lang2Select.addEventListener("change", () => {
+        const newL2 = lang2Select.value;
+        if (newL2 === lang1) {
+          lang1 = lang2;
+          lang1Select.value = lang1;
+        }
+        lang2 = newL2;
+        saveLanguageSelection();
+        syncLanguageUiLabels();
+      });
+
+      swapLangsBtn.addEventListener("click", () => {
+        const tmp = lang1;
+        lang1 = lang2;
+        lang2 = tmp;
+        lang1Select.value = lang1;
+        lang2Select.value = lang2;
+        saveLanguageSelection();
+        syncLanguageUiLabels();
+      });
+    }
+
+    function saveLanguageSelection() {
+      try {
+        localStorage.setItem(LANG1_STORAGE_KEY, lang1);
+        localStorage.setItem(LANG2_STORAGE_KEY, lang2);
+      } catch (e) {}
+    }
+
+    function syncLanguageUiLabels() {
+      const l1Obj = getLangObj(lang1);
+      const l2Obj = getLangObj(lang2);
+
+      if (headerLangPairBadge) {
+        headerLangPairBadge.textContent = `${l1Obj.flag} ${l1Obj.code.toUpperCase()} ↔ ${l2Obj.flag} ${l2Obj.code.toUpperCase()}`;
+      }
+      if (styleSelectLabel) {
+        styleSelectLabel.textContent = `Стиль речи при переводе (${l1Obj.nameRu} ↔ ${l2Obj.nameRu})`;
+      }
+      if (role === "guest") {
+        const subHint = document.getElementById("guestOverlaySubHint");
+        const joinBtn = document.getElementById("joinMeetingGuestBtn");
+        if (subHint) subHint.textContent = `(${l2Obj.ui.joinHint})`;
+        if (joinBtn && !joinBtn.disabled) {
+          joinBtn.textContent = `🔊 Подключиться и включить микрофон (${l2Obj.ui.joinBtn})`;
+        }
+      }
+      if (!isRecordingPTT) {
+        resetPttButtonAppearance();
+      }
+    }
 
     function formatTimeMMSS(totalSec) {
       const m = String(Math.floor(totalSec / 60)).padStart(2, "0");
@@ -437,6 +1049,8 @@
       try {
         const payload = {
           roomId: currentRoomId,
+          lang1: lang1,
+          lang2: lang2,
           glossary: document.getElementById("glossaryInput").value || "",
           recSeconds: recSeconds,
           transcriptLog: transcriptLog,
@@ -582,6 +1196,8 @@
 
     // ================= ИНИЦИАЛИЗАЦИЯ API-КЛЮЧА И СТАРТОВОГО ЭКРАНА =================
     async function bootstrapApp() {
+      initLanguageSelectors();
+
       if (role === "guest") {
         setupScreen.classList.add("hidden");
         roomScreen.classList.remove("hidden");
@@ -591,8 +1207,7 @@
         document.getElementById("modePanel").classList.add("hidden");
         document.getElementById("qrBox").classList.add("hidden");
         document.getElementById("finishRecBtn").textContent = "⏹ Завершить встречу";
-        pttLabel.textContent = "🎙 กดค้างไว้เพื่อพูด (Удерживайте для речи)";
-        pttSub.textContent = "พูดจนจบประโยคแล้วค่อยปล่อยนิ้ว (Отпустите после всей фразы)";
+        syncLanguageUiLabels();
         const savedGuestLog = loadGuestTranscript();
         if (savedGuestLog.length > 0) renderSavedTranscript(savedGuestLog);
         initGuestPeer(guestRoomParam);
@@ -660,6 +1275,16 @@
       const targetRoomId = hostRoomParam || (savedSession ? savedSession.roomId : "");
 
       if (targetRoomId && activeApiKey) {
+        if (!urlLang1Param && savedSession && savedSession.lang1 && LANGUAGES[savedSession.lang1]) {
+          lang1 = savedSession.lang1;
+          lang1Select.value = lang1;
+        }
+        if (!urlLang2Param && savedSession && savedSession.lang2 && LANGUAGES[savedSession.lang2]) {
+          lang2 = savedSession.lang2;
+          lang2Select.value = lang2;
+        }
+        syncLanguageUiLabels();
+
         if (savedSession && savedSession.glossary) {
           document.getElementById("glossaryInput").value = savedSession.glossary;
         }
@@ -685,6 +1310,7 @@
     document.getElementById("joinMeetingGuestBtn").addEventListener("click", async () => {
       const btn = document.getElementById("joinMeetingGuestBtn");
       const errBox = document.getElementById("guestMicErrorBox");
+      const l2Obj = getLangObj(lang2);
       errBox.classList.add("hidden");
       btn.disabled = true;
       btn.textContent = "⏳ Включаем микрофон и звук...";
@@ -703,7 +1329,7 @@
         playNextGuestWav();
       } catch (e) {
         btn.disabled = false;
-        btn.textContent = "🔊 Подключиться и включить микрофон (เริ่มใช้งาน)";
+        btn.textContent = `🔊 Подключиться и включить микрофон (${l2Obj.ui.joinBtn})`;
         errBox.innerHTML = `⚠️ Браузер не дал доступ к микрофону (${e && e.message ? e.message : "Permission denied"}).<br/>Нажмите на <b>значок замка / настроек слева от адреса сайта</b> вверху браузера → выберите <b>«Микрофон: Разрешить»</b> и нажмите зелёную кнопку ещё раз.`;
         errBox.classList.remove("hidden");
       }
@@ -969,7 +1595,7 @@
       const link = document.getElementById("audioDownloadLink");
       const ext = (blob.type && blob.type.includes("mp4")) ? "m4a" : "webm";
       link.href = url;
-      link.download = `meeting-record-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      link.download = `meeting-record-${lang1.toUpperCase()}-${lang2.toUpperCase()}-${new Date().toISOString().slice(0, 10)}.${ext}`;
       box.classList.remove("hidden");
       if (role === "host") {
         document.getElementById("startNewRoomBtn").classList.remove("hidden");
@@ -982,9 +1608,11 @@
       activeApiKey = apiKey;
       meetingStopped = false;
 
-      hostResumeUrl = `${window.location.origin}${window.location.pathname}?host=${roomId}`;
+      syncLanguageUiLabels();
+
+      hostResumeUrl = `${window.location.origin}${window.location.pathname}?host=${roomId}&l1=${lang1}&l2=${lang2}`;
       try {
-        history.replaceState(null, "", `?host=${roomId}`);
+        history.replaceState(null, "", `?host=${roomId}&l1=${lang1}&l2=${lang2}`);
       } catch (e) {}
 
       savePersistentSession();
@@ -993,9 +1621,9 @@
       roomScreen.classList.remove("hidden");
       roomScreen.classList.add("flex");
       activeRoomBody.classList.remove("hidden");
-      document.getElementById("roomCodeBadge").textContent = roomId;
+      document.getElementById("roomCodeBadge").textContent = `${roomId} (${lang1.toUpperCase()}↔${lang2.toUpperCase()})`;
 
-      guestShareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+      guestShareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}&l1=${lang1}&l2=${lang2}`;
       const qrContainer = document.getElementById("qrcode");
       qrContainer.innerHTML = "";
       if (typeof QRCode !== "undefined") {
@@ -1010,13 +1638,12 @@
         resumeAudioBanner.classList.remove("hidden");
       }
 
-      // Фоновый предпрогрев TTS-кэша: частые фразы играют мгновенно на встрече
+      // 5. Умный предпрогрев TTS-кэша (warmPhrases) под выбранный целевой язык
       if (!isRestoredSession && activeApiKey) {
-        const warmPhrases = [
-          "สวัสดีครับ", "ขอบคุณครับ", "ได้ครับ", "ไม่เป็นไรครับ",
-          "โอเคครับ", "ยินดีที่ได้รู้จักครับ", "กรุณาพูดใหม่อีกครั้ง"
-        ];
-        for (const p of warmPhrases) { synthesizeGeminiTts(p).catch(() => {}); }
+        const targetWarm = getLangObj(lang2).warmPhrases || [];
+        for (const p of targetWarm) {
+          synthesizeGeminiTts(p).catch(() => {});
+        }
       }
 
       initHostPeer(roomId);
@@ -1062,7 +1689,7 @@
       window.location.href = window.location.origin + window.location.pathname;
     });
 
-    // ================= P2P СВЯЗЬ С АВТОПЕРЕПОДКЛЮЧЕНИЕМ =================
+    // ================= 4. P2P СВЯЗЬ С СИНХРОНИЗАЦИЕЙ ЯЗЫКОВ И АВТОПЕРЕПОДКЛЮЧЕНИЕМ =================
     function initHostPeer(roomId) {
       if (typeof Peer === "undefined" || meetingStopped) return;
       if (peer && !peer.destroyed) {
@@ -1082,6 +1709,12 @@
         conn = connection;
         document.getElementById("partnerStatus").textContent = "✅ Второй телефон подключён!";
         document.getElementById("partnerStatus").className = "text-xs text-emerald-400 mt-2 font-semibold";
+
+        conn.send({
+          type: "LANG_SYNC",
+          lang1: lang1,
+          lang2: lang2
+        });
 
         conn.send({
           type: "TIMER_SYNC",
@@ -1104,15 +1737,15 @@
           } else if (data.type === "GUEST_AUDIO_COMMIT") {
             const rawGuestPcm = mergeInt16Chunks(guestIncomingChunks);
             guestIncomingChunks = [];
-            // Если у гостя старая версия страницы, щелчок в конце его записи вырезаем на хосте (ищем в последней секунде)
             const fullGuestPcm = trimTailBurst(rawGuestPcm, Math.max(0, rawGuestPcm.length - 14400));
+            const l2Ui = getLangObj(lang2).ui;
             if (fullGuestPcm.length > 0) {
               playIncomingGuestToMixer(fullGuestPcm);
               processCompleteTurn(fullGuestPcm, "guest");
             } else {
               setBottomStatus(
                 "warn",
-                "⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (พูดไม่ชัด กรุณาพูดใหม่อีกครั้ง)",
+                `⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (${l2Ui.repeatPlease})`,
                 true,
                 4500
               );
@@ -1187,7 +1820,11 @@
       });
 
       conn.on("data", async (data) => {
-        if (data.type === "TIMER_SYNC") {
+        if (data.type === "LANG_SYNC") {
+          if (data.lang1 && LANGUAGES[data.lang1]) lang1 = data.lang1;
+          if (data.lang2 && LANGUAGES[data.lang2]) lang2 = data.lang2;
+          syncLanguageUiLabels();
+        } else if (data.type === "TIMER_SYNC") {
           recSeconds = data.seconds || 0;
           document.getElementById("recTimer").textContent = data.formatted || formatTimeMMSS(recSeconds);
         } else if (data.type === "STATUS_SYNC") {
@@ -1200,7 +1837,7 @@
             playNextGuestWav();
           }
         } else if (data.type === "AI_BROWSER_TTS_FOR_GUEST") {
-          speakBrowserTts(data.text, data.lang || "th-TH");
+          speakBrowserTts(data.text, data.lang || lang2);
         } else if (data.type === "TRANSCRIPT_SYNC") {
           appendMessage(data.speaker, data.text, false);
         } else if (data.type === "FULL_HISTORY_SYNC" && Array.isArray(data.transcript)) {
@@ -1282,8 +1919,6 @@
     });
 
     // ================= ШУМОВОЙ ГЕЙТ И ОБРЕЗКА ТИШИНЫ =================
-    // Гистерезис: открытие на 0.0045 RMS, закрытие на 0.0025 (не рвёт концы слов).
-    // Тихие участки внутри реплики приглушаются до -15 дБ, а не обнуляются.
     function noiseGatePcm16(pcm16, opts = {}) {
       if (!pcm16 || pcm16.length === 0) return pcm16;
       const FRAME = 320; // 20 мс при 16 кГц
@@ -1303,10 +1938,8 @@
         frameRms[f] = Math.sqrt(s / FRAME);
       }
 
-      // Адаптация к фону: медианный RMS по фреймам = уровень шума реплики.
-      // Речь — это фреймы заметно выше своего окружения.
       const sortedRms = Array.from(frameRms).sort((a, b) => a - b);
-      const noiseFloor = sortedRms[Math.floor(nFrames * 0.25)]; // 25-й перцентиль: устойчиво и при преобладании речи, и при преобладании тишины
+      const noiseFloor = sortedRms[Math.floor(nFrames * 0.25)];
       const openTh = Math.max(OPEN_THRESH, noiseFloor * 2.5);
       const closeTh = Math.max(CLOSE_THRESH, noiseFloor * 1.6);
 
@@ -1326,7 +1959,7 @@
       let first = -1, last = -1;
       for (let f = 0; f < nFrames; f++) if (isSpeech[f]) { first = f; break; }
       for (let f = nFrames - 1; f >= 0; f--) if (isSpeech[f]) { last = f; break; }
-      if (first < 0) return new Int16Array(0); // чистая тишина
+      if (first < 0) return new Int16Array(0);
       first = Math.max(0, first - PAD_FRAMES);
       last = Math.min(nFrames - 1, last + PAD_FRAMES);
 
@@ -1440,18 +2073,43 @@
       return btoa(binary);
     }
 
-    // ================= СТИЛЬ РЕЧИ И АНТИ-ГАЛЛЮЦИНАЦИИ =================
+    // ================= 2. ДИНАМИЧЕСКИЙ СТИЛЬ РЕЧИ И УНИВЕРСАЛЬНЫЙ СИСТЕМНЫЙ ПРОМПТ =================
     const STYLE_STORAGE_KEY = "translator_style";
-    const STYLE_PROMPTS = {
-      business: "Стиль: деловой. Формальный тайский, обращение คุณ, частицы ครับ или ค่ะ в каждой фразе, без разговорных слов.",
-      professional: "Стиль: профессиональный. Нейтральный и точный тайский, термины без упрощений, частицы ครับ или ค่ะ в конце фразы.",
-      friendly: "Стиль: дружеский. Разговорный тайский, короткие фразы, частицы นะ и ครับ или ค่ะ.",
-      simple: "Стиль: простой. Короткие фразы, самые распространённые слова, без сложных оборотов, частицы ครับ или ค่ะ."
+    const BASE_STYLE_DESCRIPTIONS = {
+      business: "Стиль: деловой. Вежливый, уважительный официальный регистр для переговоров.",
+      professional: "Стиль: профессиональный. Точный и нейтральный регистр, сохраняй профильные термины без упрощений.",
+      friendly: "Стиль: дружеский. Естественный, живой и тёплый разговорный регистр.",
+      simple: "Стиль: простой. Короткие и максимально понятные фразы без сложных оборотов."
     };
+
+    function buildStyleInstruction(styleKey, codeA, codeB) {
+      const base = BASE_STYLE_DESCRIPTIONS[styleKey] || BASE_STYLE_DESCRIPTIONS.business;
+      const extras = [];
+      const hasLang = (c) => codeA === c || codeB === c;
+
+      if (hasLang("th")) {
+        if (styleKey === "business" || styleKey === "professional") {
+          extras.push("При переводе на тайский используй формальное обращение คุณ и вежливые частицы ครับ или ค่ะ в конце фраз.");
+        } else {
+          extras.push("При переводе на тайский сохраняй вежливые частицы ครับ или ค่ะ.");
+        }
+      }
+      if (hasLang("zh") && (styleKey === "business" || styleKey === "professional")) {
+        extras.push("При переводе на китайский используй уважительное обращение 您.");
+      }
+      if (hasLang("ko") && (styleKey === "business" || styleKey === "professional")) {
+        extras.push("При переводе на корейский используй вежливый официально-деловой стиль (해요체/하십시오체).");
+      }
+      if (hasLang("ja") && (styleKey === "business" || styleKey === "professional")) {
+        extras.push("При переводе на японский используй вежливый деловой стиль (丁寧語 / です・ます).");
+      }
+      return extras.length > 0 ? `${base} ${extras.join(" ")}` : base;
+    }
+
     const styleSelectEl = document.getElementById("styleSelect");
     try {
       const savedStyle = localStorage.getItem(STYLE_STORAGE_KEY);
-      if (savedStyle && STYLE_PROMPTS[savedStyle]) styleSelectEl.value = savedStyle;
+      if (savedStyle && BASE_STYLE_DESCRIPTIONS[savedStyle]) styleSelectEl.value = savedStyle;
     } catch (e) {}
     styleSelectEl.addEventListener("change", () => {
       try { localStorage.setItem(STYLE_STORAGE_KEY, styleSelectEl.value); } catch (e) {}
@@ -1486,16 +2144,20 @@
     // ================= РАСПОЗНАВАНИЕ И ПЕРЕВОД (GEMINI 3.6 FLASH ПЕРВАЯ) =================
     async function transcribeAndTranslateWav(wavBase64, durationSec = 3.0) {
       const glossary = document.getElementById("glossaryInput").value.trim();
-      const styleText = STYLE_PROMPTS[styleSelectEl.value] || STYLE_PROMPTS.business;
-      const promptText = `Ты переводчик между русским и тайским. Тебе дана аудиозапись одной реплики.
+      const l1Obj = getLangObj(lang1);
+      const l2Obj = getLangObj(lang2);
+      const styleText = buildStyleInstruction(styleSelectEl.value, lang1, lang2);
+
+      const promptText = `Ты двусторонний синхронный переводчик между языками: ${l1Obj.promptName} (код "${l1Obj.code}") и ${l2Obj.promptName} (код "${l2Obj.code}"). Тебе дана аудиозапись одной реплики.
 
 Правила:
 1. Сначала реши, есть ли в записи разборчивая человеческая речь. Тишина, шум, дыхание, эхо, музыка и обрывки звуков не считаются речью.
 2. Если речи нет, верни speech=false и пустые строки в остальных полях.
 3. Если речь есть, запиши в поле original дословно то, что сказано. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО придумывать фразы, имена, компании или добавлять слова, которых нет в записи.
-4. Русская речь: source_lang "ru", target_lang "th". Переведи на тайский. ${styleText} Стиль меняет только форму речи. Не добавляй факты, имена и слова, которых нет в оригинале.
-5. Тайская речь: source_lang "th", target_lang "ru". Переведи на естественный русский.
-6. Если слово неразборчиво, пропусти его. Не угадывай.
+4. Если речь прозвучала на языке «${l1Obj.promptName}»: укажи source_lang "${l1Obj.code}", target_lang "${l2Obj.code}" и переведи в поле translation на язык «${l2Obj.promptName}».
+5. Если речь прозвучала на языке «${l2Obj.promptName}»: укажи source_lang "${l2Obj.code}", target_lang "${l1Obj.code}" и переведи в поле translation на язык «${l1Obj.promptName}».
+6. ${styleText} Стиль меняет только форму речи. Не добавляй факты, имена и слова, которых нет в оригинале.
+7. Если слово неразборчиво, пропусти его. Не угадывай.
 ${glossary ? "Подсказка для написания имён и терминов (используй ТОЛЬКО если они реально прозвучали в записи): " + glossary : ""}`;
 
       let lastErr = "Неизвестная ошибка API";
@@ -1585,7 +2247,6 @@ ${glossary ? "Подсказка для написания имён и терм�
                 contents: [{ parts: [{ text: textToSpeak }] }],
                 generationConfig: {
                   responseModalities: ["AUDIO"],
-                  // Просим raw PCM L16, чтобы не разбирать WAV-контейнер в обычном пути.
                   responseFormat: {
                     audio: { mimeType: "AUDIO_L16", sampleRate: 24000 }
                   },
@@ -1602,8 +2263,6 @@ ${glossary ? "Подсказка для написания имён и терм�
           const parts = data?.candidates?.[0]?.content?.parts || [];
           for (const p of parts) {
             if (p.inlineData && p.inlineData.data) {
-              // MIME важен: Gemini 3.8 может вернуть WAV-контейнер с RIFF-заголовком
-              // и дополнительными чанками в конце. Их нельзя интерпретировать как PCM.
               const pcm = base64ToInt16(p.inlineData.data, p.inlineData.mimeType || "");
               if (pcm && pcm.length > 0) return fadeEdges(pcm);
             }
@@ -1613,26 +2272,35 @@ ${glossary ? "Подсказка для написания имён и терм�
       return null;
     }
 
-    function speakBrowserTts(text, langCode) {
+    function speakBrowserTts(text, langCodeOrBcp) {
       try {
         if (typeof speechSynthesis === "undefined") return;
         speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = langCode === "ru" ? "ru-RU" : "th-TH";
+        const norm = normalizeLangCode(langCodeOrBcp);
+        if (LANGUAGES[norm]) {
+          utter.lang = LANGUAGES[norm].bcp47;
+        } else if (typeof langCodeOrBcp === "string" && langCodeOrBcp.includes("-")) {
+          utter.lang = langCodeOrBcp;
+        } else {
+          utter.lang = getLangObj(lang2).bcp47;
+        }
         utter.rate = 0.96;
         speechSynthesis.speak(utter);
       } catch (e) {}
     }
 
-    // ================= САМОПРОВЕРКА ПЕРЕД ВСТРЕЧЕЙ =================
+    // ================= 3. САМОПРОВЕРКА ПЕРЕД ВСТРЕЧЕЙ (БЕЗ ПРИВЯЗКИ К THAI_RE) =================
     const SELF_CHECK_MODELS = TRANSLATION_MODELS.map(m => m.name);
-    const THAI_RE = /[฀-๿]/;
 
     function selfCheckSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     async function selfCheckTextModel(modelName, key) {
+      const l1Obj = getLangObj(lang1);
+      const l2Obj = getLangObj(lang2);
+      const samplePhrase = lang1 === "en" ? "Good afternoon, glad to see you." : "Добрый день, рад вас видеть.";
       const body = {
-        contents: [{ parts: [{ text: "Переведи на тайский одной фразой. Верни только перевод. Фраза: Добрый день, рад вас видеть." }] }],
+        contents: [{ parts: [{ text: `Переведи с языка «${l1Obj.promptName}» на язык «${l2Obj.promptName}» одной фразой. Верни только перевод без кавычек и пояснений. Фраза: ${samplePhrase}` }] }],
         generationConfig: { temperature: 0.0 }
       };
       if (modelName.startsWith("gemini-2.5")) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
@@ -1649,8 +2317,8 @@ ${glossary ? "Подсказка для написания имён и терм�
         const data = await res.json();
         const parts = data?.candidates?.[0]?.content?.parts || [];
         const text = parts.filter(x => !x.thought && typeof x.text === "string").map(x => x.text).join("").trim();
-        if (THAI_RE.test(text)) return { ok: true, msg: text.slice(0, 60) };
-        return { ok: false, msg: "Ответ без тайского текста" };
+        if (text.length > 0) return { ok: true, msg: text.slice(0, 60) };
+        return { ok: false, msg: "Пустой ответ от модели" };
       } catch (e) {
         return { ok: false, msg: "Нет связи: " + (e.message || e) };
       }
@@ -1710,6 +2378,8 @@ ${glossary ? "Подсказка для написания имён и терм�
     async function runSelfCheck() {
       const btn = document.getElementById("selfCheckBtn");
       const box = document.getElementById("selfCheckBox");
+      const l1Obj = getLangObj(lang1);
+      const l2Obj = getLangObj(lang2);
       box.innerHTML = "";
       box.classList.remove("hidden");
       btn.disabled = true;
@@ -1731,7 +2401,7 @@ ${glossary ? "Подсказка для написания имён и терм�
 
       try {
         // 1. Интернет и экран
-        if (navigator.onLine) addRow("ok", "Интернет есть");
+        if (navigator.onLine) addRow("ok", `Интернет есть • Пара: ${l1Obj.flag} ${l1Obj.nameRu} ↔ ${l2Obj.flag} ${l2Obj.nameRu}`);
         else addRow("fail", "Нет интернета");
         if ("wakeLock" in navigator) addRow("ok", "Экран можно держать включённым");
         else addRow("warn", "Браузер не умеет держать экран включённым. Отключи автоблокировку в настройках телефона");
@@ -1761,13 +2431,14 @@ ${glossary ? "Подсказка для написания имён и терм�
           return;
         }
 
-        // 3. Озвучка
-        const ttsRow = addRow("run", "Озвучка тайского...");
-        const pcm24 = await synthesizeGeminiTts("สวัสดีครับ");
+        // 3. Озвучка целевого языка
+        const ttsRow = addRow("run", `Озвучка (${l2Obj.nameRu})...`);
+        const testTtsPhrase = (l2Obj.warmPhrases && l2Obj.warmPhrases[0]) ? l2Obj.warmPhrases[0] : "Hello";
+        const pcm24 = await synthesizeGeminiTts(testTtsPhrase);
         if (pcm24 && pcm24.length > 0) {
           setRow(ttsRow, "ok", "Озвучка Gemini работает (" + (pcm24.length / 24000).toFixed(1) + " сек звука)");
         } else {
-          setRow(ttsRow, "warn", "Озвучка Gemini не ответила. Приложение возьмёт голос браузера, тайский там слабее");
+          setRow(ttsRow, "warn", `Озвучка Gemini не ответила. Приложение возьмёт голос браузера (${l2Obj.bcp47})`);
         }
 
         // 4. Связь телефонов
@@ -1812,7 +2483,7 @@ ${glossary ? "Подсказка для написания имён и терм�
         setRow(silRow, silStatus, silText);
 
         // 6. Микрофон и речь
-        const spRow = addRow("run", "Скажи по-русски: «Добрый день, рада вас видеть». Идёт запись 4 секунды...");
+        const spRow = addRow("run", `Скажи фразу на языке «${l1Obj.nameRu}» (или «${l2Obj.nameRu}»). Идёт запись 4 секунды...`);
         let spPcm = null;
         try {
           spPcm = await selfCheckRecord(4);
@@ -1830,12 +2501,13 @@ ${glossary ? "Подсказка для написания имён и терм�
             const rr = await transcribeAndTranslateWav(encodeWavBase64(normalizeAudioPcm16(spPcm), 16000), 4.0);
             const o = ((rr && rr.original) || "").trim();
             const tr = ((rr && rr.translation) || "").trim();
+            const tLang = normalizeLangCode(rr && rr.target_lang);
             if (!o) {
               setRow(spRow, "fail", "Голос слышен, но модель не распознала речь");
-            } else if (!THAI_RE.test(tr)) {
-              setRow(spRow, "warn", "Услышано: «" + o.slice(0, 80) + "». Тайского перевода нет");
+            } else if (!tr || (tLang !== lang1 && tLang !== lang2)) {
+              setRow(spRow, "warn", `Услышано: «${o.slice(0, 80)}». Перевод: ${tr ? tr.slice(0, 80) : "нет"}`);
             } else {
-              setRow(spRow, "ok", "Услышано: «" + o.slice(0, 80) + "». Перевод: " + tr.slice(0, 80) + ". Сверь с тем, что ты сказал");
+              setRow(spRow, "ok", `Услышано: «${o.slice(0, 80)}» → Перевод (${tLang.toUpperCase()}): «${tr.slice(0, 80)}»`);
             }
           } catch (e) {
             setRow(spRow, "fail", "Ошибка проверки речи: " + (e.message || e));
@@ -1856,17 +2528,19 @@ ${glossary ? "Подсказка для написания имён и терм�
     }
     document.getElementById("selfCheckBtn").addEventListener("click", runSelfCheck);
 
-    // ================= ОБРАБОТКА ОДНОЙ ЗАКОНЧЕННОЙ РЕПЛИКИ =================
+    // ================= ОБРАБОТКА ОДНОЙ ЗАКОНЧЕННОЙ РЕПЛИКИ (БЕЗ ПРИВЯЗКИ К THAI_RE) =================
     async function processCompleteTurn(fullPcm16, speakerSide) {
       if (meetingStopped || !activeApiKey) return;
 
+      const l1Obj = getLangObj(lang1);
+      const l2Obj = getLangObj(lang2);
       const durationSec = fullPcm16.length / 16000;
       const stats = calculatePcmStats(fullPcm16);
 
       if (stats.rms < 0.003 || stats.speechFrames < 10) {
         setBottomStatus(
           "warn",
-          "⚠️ Речь не опознана (слишком тихо). Пожалуйста, повторите ещё раз (เสียงเบาเกินไป กรุณาพูดใหม่อีกครั้ง)",
+          `⚠️ Речь не опознана (слишком тихо). Пожалуйста, повторите ещё раз (${l2Obj.ui.tooQuiet})`,
           true,
           4500
         );
@@ -1888,7 +2562,7 @@ ${glossary ? "Подсказка для написания имён и терм�
 
       setBottomStatus(
         "loading",
-        "Речь принята, идёт перевод... (ได้รับเสียงแล้ว กำลังแปล...)",
+        `Речь принята, идёт перевод... (${l2Obj.ui.translating})`,
         true,
         0
       );
@@ -1901,7 +2575,7 @@ ${glossary ? "Подсказка для написания имён и терм�
         if (gatedPcm.length < 2400) {
           setBottomStatus(
             "warn",
-            "⚠️ Речь не опознана (одна тишина после фильтра шума). Повторите, пожалуйста (พูดใหม่อีกครั้ง)",
+            `⚠️ Речь не опознана (одна тишина после фильтра шума). Повторите, пожалуйста (${l2Obj.ui.repeatPlease})`,
             true,
             4500
           );
@@ -1925,13 +2599,13 @@ ${glossary ? "Подсказка для написания имён и терм�
 
         const originalText = (result.original || "").trim();
         const translationText = (result.translation || "").trim();
-        const sourceLang = (result.source_lang || "").toLowerCase();
-        const targetLang = (result.target_lang || "").toLowerCase();
+        let sourceLang = normalizeLangCode(result.source_lang);
+        let targetLang = normalizeLangCode(result.target_lang);
 
         if (!originalText || !translationText) {
           setBottomStatus(
             "warn",
-            "⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (ไม่สามารถจับใจความได้ กรุณาพูดใหม่อีกครั้ง)",
+            `⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (${l2Obj.ui.repeatPlease})`,
             true,
             5000
           );
@@ -1946,26 +2620,35 @@ ${glossary ? "Подсказка для написания имён и терм�
           return;
         }
 
-        const isDetectedThai = sourceLang === "th" || THAI_RE.test(originalText);
-        const isDetectedRussian = sourceLang === "ru" || !isDetectedThai;
+        // Определяем направление по полям source_lang и target_lang из ответа модели
+        let isSourceLang2 = false;
+        if (sourceLang === lang2 || targetLang === lang1) {
+          isSourceLang2 = true;
+        } else if (sourceLang === lang1 || targetLang === lang2) {
+          isSourceLang2 = false;
+        } else {
+          isSourceLang2 = (speakerSide === "guest");
+        }
+
+        const detectedSourceObj = isSourceLang2 ? l2Obj : l1Obj;
+        const detectedTargetObj = isSourceLang2 ? l1Obj : l2Obj;
 
         let whoLabel = "";
         if (singlePhoneMode) {
-          whoLabel = isDetectedThai ? "🇹🇭 Реплика (TH)" : "🇷🇺 Реплика (RU)";
+          whoLabel = `${detectedSourceObj.flag} Реплика (${detectedSourceObj.code.toUpperCase()})`;
         } else if (speakerSide === "guest") {
-          whoLabel = isDetectedRussian ? "🇷🇺 Собеседник (RU)" : "🇹🇭 Партнёр (TH)";
+          whoLabel = `${detectedSourceObj.flag} Партнёр (${detectedSourceObj.code.toUpperCase()})`;
         } else {
-          whoLabel = isDetectedThai ? "🇹🇭 Вы (TH)" : "🇷🇺 Вы (RU)";
+          whoLabel = `${detectedSourceObj.flag} Вы (${detectedSourceObj.code.toUpperCase()})`;
         }
         appendMessage(whoLabel, originalText, true);
 
-        const isTargetRussian = targetLang === "ru" || isDetectedThai;
-        const transLabel = isTargetRussian ? "🤖 Перевод на русский" : "🤖 Перевод на тайский";
+        const transLabel = `🤖 Перевод на ${detectedTargetObj.nameAcc} (${detectedTargetObj.code.toUpperCase()})`;
         appendMessage(transLabel, translationText, true);
 
         setBottomStatus(
           "loading",
-          "🔊 Озвучиваем перевод... (กำลังเล่นเสียงแปล...)",
+          `🔊 Озвучиваем перевод... (${l2Obj.ui.speaking})`,
           true,
           0
         );
@@ -1975,8 +2658,12 @@ ${glossary ? "Подсказка для написания имён и терм�
         const pcm24 = await synthesizeGeminiTts(translationText);
         if (myTurnId !== activeTurnId || meetingStopped) return;
 
+        // Если целевой язык — язык Хоста (lang1) или включён режим 1 телефона, играем на Хосте;
+        // если целевой язык — язык Гостя (lang2) и подключён 2-й телефон, отправляем WAV Гостю
+        const playOnHost = singlePhoneMode || (detectedTargetObj.code === lang1) || (speakerSide === "guest");
+
         if (pcm24 && pcm24.length > 0) {
-          if (speakerSide === "guest" || singlePhoneMode) {
+          if (playOnHost) {
             playPcm24k(pcm24, true);
           } else {
             playPcm24k(pcm24, false);
@@ -1988,8 +2675,8 @@ ${glossary ? "Подсказка для написания имён и терм�
             }
           }
         } else {
-          const bcpLang = isTargetRussian ? "ru" : "th";
-          if (speakerSide === "guest" || singlePhoneMode || !conn || !conn.open) {
+          const bcpLang = detectedTargetObj.bcp47;
+          if (playOnHost || !conn || !conn.open) {
             speakBrowserTts(translationText, bcpLang);
           } else {
             conn.send({ type: "AI_BROWSER_TTS_FOR_GUEST", text: translationText, lang: bcpLang });
@@ -2053,11 +2740,12 @@ ${glossary ? "Подсказка для написания имён и терм�
     }
 
     function resetPttButtonAppearance() {
+      const l2Ui = getLangObj(lang2).ui;
       pttBtn.classList.remove("ptt-active");
       pttBtn.className = "ptt-btn w-full h-24 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer";
       if (role === "guest") {
-        pttLabel.textContent = "🎙 กดค้างไว้เพื่อพูด (Удерживайте для речи)";
-        pttSub.textContent = "พูดจนจบประโยคแล้วค่อยปล่อยนิ้ว (Отпустите после всей фразы)";
+        pttLabel.textContent = `🎙 ${l2Ui.pttHold} (Удерживайте для речи)`;
+        pttSub.textContent = `${l2Ui.pttSub} (Отпустите после всей фразы)`;
       } else {
         pttLabel.textContent = "🎙 УДЕРЖИВАЙТЕ, ЧТОБЫ ГОВОРИТЬ";
         pttSub.textContent = "Говорите сколько нужно → отпустите для перевода";
@@ -2081,12 +2769,13 @@ ${glossary ? "Подсказка для написания имён и терм�
         setMicRecording(true);
         pttStartTimestamp = Date.now();
 
+        const l2Ui = getLangObj(lang2).ui;
         pttBtn.classList.add("ptt-active");
         pttBtn.className = "ptt-btn ptt-active w-full h-24 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer";
 
         if (role === "guest") {
-          pttLabel.textContent = "🔴 กำลังบันทึกเสียง: 0.0 วินาที...";
-          pttSub.textContent = "พูดให้จบก่อน แล้วค่อยปล่อยปุ่มเพื่อแปล";
+          pttLabel.textContent = `🔴 ${l2Ui.pttRec}: 0.0 ${l2Ui.pttSec}...`;
+          pttSub.textContent = l2Ui.pttRecSub;
         } else {
           pttLabel.textContent = "🔴 ЗАПИСЬ РЕЧИ: 0.0 сек...";
           pttSub.textContent = "AI ждёт, пока вы договорите и отпустите кнопку";
@@ -2096,8 +2785,9 @@ ${glossary ? "Подсказка для написания имён и терм�
         pttTimerInterval = setInterval(() => {
           if (!isRecordingPTT) return;
           const elapsed = ((Date.now() - pttStartTimestamp) / 1000).toFixed(1);
+          const curL2Ui = getLangObj(lang2).ui;
           if (role === "guest") {
-            pttLabel.textContent = `🔴 กำลังบันทึกเสียง: ${elapsed} วินาที...`;
+            pttLabel.textContent = `🔴 ${curL2Ui.pttRec}: ${elapsed} ${curL2Ui.pttSec}...`;
           } else {
             pttLabel.textContent = `🔴 ЗАПИСЬ РЕЧИ: ${elapsed} сек...`;
           }
@@ -2122,11 +2812,12 @@ ${glossary ? "Подсказка для написания имён и терм�
         const fullUtterance = trimTailBurst(mergeInt16Chunks(pttBufferedChunks), pttReleaseIdx);
         pttReleaseIdx = -1;
         pttBufferedChunks = [];
+        const l2Ui = getLangObj(lang2).ui;
 
         if (fullUtterance.length < 2400) {
           setBottomStatus(
             "warn",
-            "⚠️ Слишком короткое нажатие — удерживайте кнопку, пока говорите фразу (กดค้างไว้ขณะพูด)",
+            `⚠️ Слишком короткое нажатие — удерживайте кнопку, пока говорите фразу (${l2Ui.tooShort})`,
             false,
             3500
           );
@@ -2138,7 +2829,7 @@ ${glossary ? "Подсказка для написания имён и терм�
         } else if (conn && conn.open) {
           setBottomStatus(
             "loading",
-            "Речь принята, идёт перевод... (ได้รับเสียงแล้ว กำลังแปล...)",
+            `Речь принята, идёт перевод... (${l2Ui.translating})`,
             false,
             0
           );
@@ -2213,7 +2904,6 @@ ${glossary ? "Подсказка для написания имён и терм�
       source.buffer = audioBuf;
 
       const outGain = audioCtx.createGain();
-      // Громкая связь: +50% громкости в динамик (сигнал TTS без клиппинга, запас есть)
       outGain.gain.value = (speakerMode && playToLocalHeadphones) ? 1.5 : 1.0;
       source.connect(outGain);
       if (playToLocalHeadphones) outGain.connect(audioCtx.destination);
@@ -2262,15 +2952,12 @@ ${glossary ? "Подсказка для написания имён и терм�
         (bytes.length >= 12 && readTag(0) === "RIFF" && readTag(8) === "WAVE");
 
       if (!looksLikeWav) {
-        // audio/L16: headerless signed 16-bit little-endian PCM.
         if (bytes.length < 2 || bytes.length % 2 !== 0) {
           throw new Error("Некорректный размер PCM-аудио");
         }
         return new Int16Array(bytes.buffer);
       }
 
-      // Читаем WAV по RIFF-чанкам и забираем ТОЛЬКО data.
-      // Это исключает RIFF-заголовок и любые метаданные после аудио.
       const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       let formatCode = 0;
       let channels = 0;
@@ -2292,7 +2979,6 @@ ${glossary ? "Подсказка для написания имён и терм�
           sampleRate = view.getUint32(chunkStart + 4, true);
           bitsPerSample = view.getUint16(chunkStart + 14, true);
 
-          // WAVE_FORMAT_EXTENSIBLE: первые 2 байта SubFormat содержат исходный формат.
           if (formatCode === 0xFFFE && chunkSize >= 40) {
             formatCode = view.getUint16(chunkStart + 24, true);
           }
@@ -2319,7 +3005,6 @@ ${glossary ? "Подсказка для написания имён и терм�
 
       if (channels === 1) return source;
 
-      // На случай многоканального WAV сводим каналы в mono.
       const mono = new Int16Array(sampleCount / channels);
       for (let i = 0; i < mono.length; i++) {
         let sum = 0;
@@ -2362,7 +3047,7 @@ ${glossary ? "Подсказка для написания имён и терм�
       const blob = new Blob([content || "Диалог пуст"], { type: "text/plain;charset=utf-8" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `protocol-RU-TH-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `protocol-${lang1.toUpperCase()}-${lang2.toUpperCase()}-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
     }
 
@@ -2389,7 +3074,7 @@ ${glossary ? "Подсказка для написания имён и терм�
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             meeting_date: new Date().toISOString(),
-            pair: "RU-TH",
+            pair: `${lang1.toUpperCase()}-${lang2.toUpperCase()}`,
             transcript: transcriptLog
           })
         }).catch(() => {});
