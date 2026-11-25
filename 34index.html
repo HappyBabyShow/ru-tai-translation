@@ -1,0 +1,4078 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RuTai Translated</title>
+  <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
+  <link rel="preconnect" href="https://generativelanguage.googleapis.com" crossorigin />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    body {
+      background-color: #090d16;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+    }
+    .ptt-btn {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      transition: transform 0.1s ease, box-shadow 0.2s ease, background 0.15s ease;
+    }
+    .ptt-btn:active, .ptt-active {
+      transform: scale(0.97);
+      box-shadow: 0 0 42px rgba(244, 63, 94, 0.7);
+    }
+    .glass {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <header class="border-b border-slate-800/80 px-4 py-3 flex items-center justify-between gap-2">
+    <div id="brandHeader" class="flex items-center gap-2 shrink-0 select-none cursor-pointer">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="font-semibold tracking-tight text-sm sm:text-base text-emerald-400">
+        RuTai Translated
+      </span>
+      <span id="headerPairBadge" class="text-[11px] font-mono bg-slate-800/90 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700">
+        RU ⇄ TH
+      </span>
+    </div>
+    <div id="connBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 truncate max-w-[235px]">
+      Готов к встрече
+    </div>
+  </header>
+
+  <main class="max-w-2xl w-full mx-auto px-4 py-5 flex-1 flex flex-col gap-4">
+
+    <!-- ЭКРАН 1: СТАРТОВЫЙ ЭКРАН -->
+    <section id="setupScreen" class="glass rounded-2xl p-6 flex flex-col gap-5">
+      <div>
+        <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">
+          Переговоры • Квесты • Экскурсии
+        </span>
+        <h1 class="text-xl sm:text-2xl font-bold mt-1">
+          Персональный синхронный переводчик
+        </h1>
+        <p class="text-slate-400 text-sm mt-1.5 leading-relaxed">
+          Нажмите кнопку ниже, чтобы открыть кабинет. Внутри доступны режимы: <b>2 телефона</b>, <b>1 телефон</b> по громкой связи и <b>Группа / Квест (BYOD)</b> с общим чатом вопросов для 15+ гостей.
+        </p>
+      </div>
+
+      <!-- АДМИН-БЛОК КЛЮЧА -->
+      <div id="apiKeyFieldWrapper" class="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs text-slate-300 font-medium">
+            🔑 Gemini API Key <span class="text-slate-500">(вводится один раз)</span>
+          </label>
+          <button id="hideAdminPanelBtn" type="button" class="hidden text-[11px] text-slate-400 hover:text-slate-200 cursor-pointer">
+            Скрыть ✕
+          </button>
+        </div>
+        <input id="apiKeyInput" type="password" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500" />
+        <button id="copyClientMagicLinkBtn" type="button" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-lg border border-emerald-500/30 cursor-pointer">
+          🔒 Создать и скопировать скрытую ссылку для заказчика
+        </button>
+        <div id="magicLinkPreview" class="hidden text-[11px] text-slate-400 break-all bg-slate-950/80 p-2 rounded-lg border border-slate-800"></div>
+      </div>
+
+      <!-- ВЫБОР ФОРМАТА НА СТАРТЕ -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs text-slate-300 font-semibold">
+            🎯 Формат сессии
+          </label>
+          <span class="text-[11px] text-emerald-400 font-medium">Можно переключить внутри</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="setupFormatPairBtn" type="button" class="py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20">
+            📱📱 Диалог (1–2 телефона)
+          </button>
+          <button id="setupFormatGroupBtn" type="button" class="py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-950 text-slate-300 border-slate-700 hover:border-slate-500">
+            👥 Группа / Квест (BYOD)
+          </button>
+        </div>
+      </div>
+
+      <!-- ВЫБОР ЯЗЫКОВОЙ ПАРЫ -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <label id="langBlockTitle" class="text-xs text-slate-300 font-semibold">
+            🌐 Направление перевода (работает в обе стороны)
+          </label>
+          <span id="langBlockBadge" class="text-[11px] text-emerald-400 font-medium">Двусторонний AI</span>
+        </div>
+        <div id="setupLangGrid" class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-2 items-center">
+          <div>
+            <div id="lang1Caption" class="text-[11px] text-slate-400 mb-1">Ваш язык (Телефон 1)</div>
+            <select id="lang1Select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+          <button id="swapLangsBtn" type="button" title="Поменять языки местами" class="mt-0 sm:mt-5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 font-bold px-3.5 py-2.5 rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center justify-center">
+            ⇄
+          </button>
+          <div id="lang2SetupWrapper">
+            <div class="text-[11px] text-slate-400 mb-1">Язык собеседника (Телефон 2)</div>
+            <select id="lang2Select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+        </div>
+        <div id="setupGroupLangHint" class="hidden text-[11px] text-sky-300/90 bg-sky-950/40 border border-sky-500/25 rounded-lg p-2.5 leading-relaxed">
+          👥 В режиме <b>Группа / Квест (BYOD)</b> каждый гость выбирает свой родной язык, а все вопросы туристов приходят в единый чат по очереди без потерь и наложений.
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1.5">
+          Контекст, термины или легенда квеста <span class="text-slate-500">(необязательно)</span>
+        </label>
+        <textarea id="glossaryInput" rows="2" placeholder="Например: Имена участников, названия локаций в Порту, условия договора, легенда квеста..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500"></textarea>
+      </div>
+
+      <div>
+        <label id="styleSelectLabel" class="block text-xs text-slate-400 mb-1.5">Стиль речи при переводе</label>
+        <select id="styleSelect" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+          <option value="business">Деловой (вежливый официальный)</option>
+          <option value="professional">Профессиональный (точный с терминами)</option>
+          <option value="friendly">Дружеский / Экскурсионный (живой разговорный)</option>
+          <option value="simple">Простой (короткие понятные фразы для детей и игр)</option>
+        </select>
+      </div>
+
+      <button id="startHostBtn" type="button" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold py-4 rounded-xl text-sm sm:text-base shadow-lg shadow-emerald-500/20 cursor-pointer">
+        Начать встречу
+      </button>
+
+      <button id="selfCheckBtn" type="button" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-sky-300 font-semibold py-3 rounded-xl text-sm border border-sky-500/30 cursor-pointer">
+        🧪 Самопроверка перед встречей (около 20 секунд)
+      </button>
+      <div id="selfCheckBox" class="hidden text-xs bg-slate-900/80 border border-slate-700 rounded-xl p-3 flex flex-col gap-2"></div>
+
+      <div id="setupErrorBox" class="hidden text-xs bg-rose-500/15 border border-rose-500/40 text-rose-200 rounded-xl p-3"></div>
+    </section>
+
+    <!-- ЭКРАН 2: АКТИВНЫЙ КАБИНЕТ ПЕРЕВОДА -->
+    <section id="roomScreen" class="hidden flex-col gap-4">
+
+      <!-- ОВЕРЛЕЙ ВХОДА ДЛЯ ГОСТЯ -->
+      <div id="guestEntryOverlay" class="hidden glass border-emerald-500/50 rounded-2xl p-6 flex flex-col items-center text-center gap-4">
+        <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl">
+          🎧
+        </div>
+        <div>
+          <h2 id="guestOverlayTitle" class="text-lg sm:text-xl font-bold text-slate-100">
+            Подключиться к сессии
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed">
+            Выберите свой язык, наденьте наушники (или читайте чат на экране) и нажмите кнопку ниже.<br/>
+            <span id="guestOverlayNativeHint" class="text-emerald-400 font-medium">(Tap below to enable audio & microphone)</span>
+          </p>
+        </div>
+
+        <!-- ВЫБОР ЯЗЫКА И ИМЕНИ ГОСТЕМ ПЕРЕД ВХОДОМ -->
+        <div id="guestEntryLangBox" class="w-full text-left bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-3">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1.5 font-medium">
+              🌐 Ваш язык / Your Language:
+            </label>
+            <select id="guestEntryLangSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1 font-medium">
+              👤 Ваше имя / Your Name <span class="text-slate-500">(необязательно / optional)</span>:
+            </label>
+            <input id="guestNameInput" type="text" maxlength="24" placeholder="Например: Анна / Carlos / Alex" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500" />
+          </div>
+        </div>
+
+        <button id="joinMeetingGuestBtn" type="button" class="w-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-extrabold py-4 rounded-xl text-base shadow-lg shadow-emerald-500/25 cursor-pointer">
+          🔊 Подключиться (Start)
+        </button>
+        <div id="guestMicErrorBox" class="hidden text-xs bg-amber-500/15 border border-amber-500/40 text-amber-200 rounded-xl p-3 text-left w-full"></div>
+      </div>
+
+      <!-- ОСНОВНОЙ КОНТЕНТ КАБИНЕТА -->
+      <div id="activeRoomBody" class="flex flex-col gap-4">
+
+        <button id="resumeAudioBanner" type="button" class="hidden w-full bg-amber-500/20 border border-amber-400/50 text-amber-200 text-xs font-semibold py-3 px-4 rounded-xl text-center cursor-pointer animate-pulse">
+          🔊 Нажмите сюда, чтобы включить звук и микрофон после возврата во вкладку
+        </button>
+
+        <!-- ПАНЕЛЬ ГОСТЯ В ГРУППОВОМ РЕЖИМЕ -->
+        <div id="guestGroupTopBar" class="hidden glass rounded-2xl p-3.5 flex flex-col gap-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-emerald-400">🎧 Ваш канал перевода (BYOD)</span>
+            <span id="guestRoleBadge" class="text-[11px] bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full font-mono">Участник</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-center">
+            <select id="guestInRoomLangSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+            <button id="guestMuteAudioBtn" type="button" class="py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500">
+              🔊 Звук: ВКЛ
+            </button>
+          </div>
+          <div id="guestMicRetryWrap" class="hidden">
+            <button id="guestEnableMicRetryBtn" type="button" class="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-amber-500/20 border border-amber-400/50 text-amber-200 cursor-pointer">
+              🎙 Включить микрофон, чтобы задавать вопросы гиду
+            </button>
+          </div>
+        </div>
+
+        <!-- ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ, ЯЗЫКОВ И МИНИ-ИНСТРУКЦИЯ (ДЛЯ ОРГАНИЗАТОРА) -->
+        <div id="modePanel" class="glass rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Режим работы
+            </span>
+            <span id="roomCodeBadge" class="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono"></span>
+          </div>
+
+          <!-- 3 РЕЖИМА РАБОТЫ -->
+          <div class="grid grid-cols-3 gap-1.5">
+            <button id="modeTwoPhonesBtn" type="button" class="py-2.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20">
+              📱📱 2 телефона
+            </button>
+            <button id="modeOnePhoneBtn" type="button" class="py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500">
+              📱 1 телефон
+            </button>
+            <button id="modeGroupBtn" type="button" class="py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500">
+              👥 Группа / Квест
+            </button>
+          </div>
+
+          <!-- БЫСТРАЯ СМЕНА ЯЗЫКОВ ПРЯМО В КАБИНЕТЕ -->
+          <div id="roomLangPairWrap" class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+            <select id="roomLang1Select" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+            <button id="roomSwapLangsBtn" type="button" title="Поменять языки местами" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold px-2.5 py-1.5 rounded-lg border border-slate-700 text-xs cursor-pointer">
+              ⇄
+            </button>
+            <select id="roomLang2Select" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+
+          <!-- ВЫБОР ЯЗЫКА ГИДА В ГРУППОВОМ РЕЖИМЕ -->
+          <div id="roomGroupHostLangWrap" class="hidden bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+            <span class="text-xs text-slate-300 font-medium shrink-0">🎙 Ваш язык (гида):</span>
+            <select id="roomGroupHostLangSelect" class="w-full max-w-[230px] bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-100 focus:outline-none focus:border-emerald-500 cursor-pointer"></select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button id="speakerModeBtn" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500">
+              🔊 Громкая связь: ВЫКЛ
+            </button>
+            <button id="fastTtsBtn" type="button" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500" title="Озвучка встроенным голосом телефона без ожидания второго запроса к облаку">
+              ⚡ Мгновенная озвучка: ВЫКЛ
+            </button>
+          </div>
+          <div id="speakerModeHint" class="hidden text-[11px] text-amber-300/90 leading-relaxed">
+            📢 Телефоны держите в <b>1–2 метрах друг от друга</b> на столе, экраном вверх. Говорите в сторону своего телефона. Если второй собеседник зажал кнопку — перевод на вашем телефоне прервётся: это защита от эха, так и должно быть.
+          </div>
+
+          <div id="modeInstructionBox" class="bg-slate-950/75 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 leading-relaxed">
+            <div class="font-semibold text-emerald-400 mb-1">Как использовать (2 телефона и наушники):</div>
+            <ol class="list-decimal list-inside space-y-1 text-slate-300">
+              <li>Этот телефон показывает <b>QR-код</b> ниже — второй телефон партнёра сканирует его и нажимает «Подключиться».</li>
+              <li>Оба участника надевают свои <b>Bluetooth-наушники</b> (или работают через динамики на расстоянии).</li>
+              <li>Удерживайте кнопку, пока не закончите всю мысль — перевод начнётся только после отпускания кнопки.</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- БЛОК QR-КОДА И СПИСКА ПОДКЛЮЧЁННЫХ ГОСТЕЙ -->
+        <div id="qrBox" class="glass rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex flex-col sm:flex-row items-center gap-4">
+            <div id="qrcode" class="bg-white p-2.5 rounded-xl shrink-0 min-w-[144px] min-h-[144px] flex items-center justify-center text-slate-900 text-xs">
+              Генерация QR...
+            </div>
+            <div class="text-center sm:text-left flex-1">
+              <div id="qrBoxTitle" class="text-sm font-semibold text-emerald-400">Подключение второго телефона</div>
+              <p id="qrBoxDesc" class="text-xs text-slate-300 mt-1">
+                Наведите камеру второго телефона на QR-код или отправьте ссылку кнопкой ниже.
+              </p>
+              <div id="partnerStatus" class="text-xs text-amber-400 mt-2 font-medium">
+                ⏳ Ожидание подключения второго телефона...
+              </div>
+              <div class="flex flex-wrap gap-2 mt-2.5 justify-center sm:justify-start">
+                <button id="copyGuestLinkBtn" type="button" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
+                  📋 Скопировать ссылку для гостей
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ЖИВОЙ СПИСОК ЯЗЫКОВ ГРУППЫ -->
+          <div id="groupRosterBox" class="hidden pt-2.5 border-t border-slate-800/80 flex flex-col gap-1.5">
+            <div class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+              Участники в комнате:
+            </div>
+            <div id="groupRosterTags" class="flex flex-wrap gap-1.5 text-xs">
+              <span class="text-slate-500 text-xs">Пока никто не подключился — покажите группе QR-код выше</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ПАНЕЛЬ ЗАПИСИ И СИНХРОННОГО ТАЙМЕРА -->
+        <div class="glass rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span id="recDot" class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+            <span class="text-xs font-medium text-slate-200">
+              Запись: <b id="recTimer" class="text-emerald-400 font-mono">00:00</b>
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="downloadTxtBtn" type="button" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 cursor-pointer">
+              📄 Чат (.txt)
+            </button>
+            <button id="finishRecBtn" type="button" class="text-xs bg-rose-600 hover:bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-lg cursor-pointer">
+              ⏹ Завершить встречу
+            </button>
+          </div>
+        </div>
+
+        <!-- БЛОК СКАЧИВАНИЯ ПОСЛЕ ЗАВЕРШЕНИЯ -->
+        <div id="downloadReadyBox" class="hidden glass border-emerald-500/40 rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-sm">
+              <div class="font-semibold text-emerald-400">✅ Сессия завершена. Запись готова</div>
+              <div class="text-xs text-slate-400">Сохраните аудиофайл и текстовый протокол чата.</div>
+            </div>
+            <div class="flex gap-2">
+              <a id="audioDownloadLink" class="bg-emerald-500 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer">
+                ⬇️ Скачать аудио
+              </a>
+              <button id="downloadTxtBtn2" type="button" class="bg-slate-800 text-white text-xs px-3 py-2.5 rounded-xl border border-slate-700 cursor-pointer">
+                ⬇️ Протокол
+              </button>
+            </div>
+          </div>
+          <button id="startNewRoomBtn" type="button" class="hidden w-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl border border-slate-700 cursor-pointer">
+            ➕ Создать новый кабинет для следующей сессии
+          </button>
+        </div>
+
+        <!-- ЧАТ-ЛЕНТА ПЕРЕВОДОВ И ВОПРОСОВ -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">💬 Чат диалога и вопросов</span>
+            <span id="audioQueueBadge" class="hidden text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/35 px-2 py-0.5 rounded-full font-medium">
+              🔊 Озвучка в очереди...
+            </span>
+          </div>
+          <div id="transcriptBox" class="glass rounded-2xl p-3.5 h-72 overflow-y-auto flex flex-col gap-2.5 text-sm">
+            <div class="text-center text-xs text-slate-500 my-auto">
+              Удерживайте кнопку ниже, чтобы сказать фразу или задать вопрос. Все вопросы туристов выстраиваются здесь как в чате.
+            </div>
+          </div>
+        </div>
+
+        <!-- ИНДИКАТОР ЗАГРУЗКИ / СТАТУСА ОБРАБОТКИ НАД КНОПКОЙ -->
+        <div id="processingStatusBar" class="hidden glass border-indigo-500/40 rounded-xl px-4 py-2.5 flex items-center justify-center gap-3 text-xs sm:text-sm font-medium transition-all">
+          <span id="processingSpinner" class="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shrink-0"></span>
+          <span id="processingStatusText" class="text-indigo-200 text-center">Речь принята, идёт перевод...</span>
+        </div>
+
+        <!-- БОЛЬШАЯ КНОПКА PUSH-TO-TALK С ИНДИКАТОРОМ МИКРОФОНА -->
+        <div id="pttContainer" class="pt-0.5 pb-4 flex flex-col gap-2">
+          <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div id="micLevelBar" class="h-full w-0 bg-emerald-400 transition-all duration-75"></div>
+          </div>
+          <button id="pttBtn" type="button" oncontextmenu="return false;" class="ptt-btn w-full h-24 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer">
+            <span id="pttLabel">🎙 УДЕРЖИВАЙТЕ, ЧТОБЫ ГОВОРИТЬ</span>
+            <span id="pttSub" class="text-xs font-medium opacity-80 mt-0.5">Говорите сколько нужно → отпустите для перевода</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const EMBEDDED_API_KEY = "";
+    const CIPHER_SALT = "PhuketLive2026!Secret";
+    const SESSION_STORAGE_KEY = "ru_th_persistent_session_v4";
+    const API_KEY_STORAGE_KEY = "gemini_live_ru_th_key";
+    const LANG_PAIR_STORAGE_KEY = "translator_lang_pair_v1";
+    const FAST_TTS_STORAGE_KEY = "translator_fast_tts_v1";
+    const N8N_WEBHOOK_URL = "";
+
+    // ================= СПРАВОЧНИК ЯЗЫКОВ =================
+    const LANGUAGES = {
+      ru: {
+        code: "ru",
+        flag: "🇷🇺",
+        name: "Русский",
+        nameAcc: "русский",
+        namePrep: "русском",
+        bcp47: "ru-RU",
+        warmPhrases: ["Здравствуйте", "Спасибо", "Да, хорошо", "Приятно познакомиться"],
+        ui: {
+          overlayHint: "Выберите язык и нажмите кнопку ниже",
+          joinBtn: "Подключиться",
+          pttIdle: "🎙 УДЕРЖИВАЙТЕ, ЧТОБЫ СПРОСИТЬ",
+          pttSub: "Говорите сколько нужно → отпустите для отправки в чат гиду",
+          pttRec: "🔴 ЗАПИСЬ РЕЧИ:",
+          pttRecSub: "Отпустите кнопку, когда закончите вопрос",
+          secUnit: "сек...",
+          translating: "Речь принята, идёт перевод...",
+          speaking: "Озвучиваем перевод...",
+          unrecognized: "Пожалуйста, повторите ещё раз",
+          sentToGuide: "Передано гиду"
+        }
+      },
+      pt: {
+        code: "pt",
+        flag: "🇵🇹",
+        name: "Португальский (Português)",
+        nameAcc: "португальский",
+        namePrep: "португальском",
+        bcp47: "pt-PT",
+        warmPhrases: ["Olá, bem-vindos", "Muito obrigado", "Tudo bem", "Vamos começar"],
+        ui: {
+          overlayHint: "Escolha o seu idioma e toque no botão abaixo",
+          joinBtn: "Entrar na sessão",
+          pttIdle: "🎙 SEGURE PARA PERGUNTAR",
+          pttSub: "Fale a sua pergunta e solte para enviar ao guia",
+          pttRec: "🔴 A GRAVAR:",
+          pttRecSub: "Solte o botão quando terminar de falar",
+          secUnit: "seg...",
+          translating: "Áudio recebido, a traduzir...",
+          speaking: "A reproduzir tradução...",
+          unrecognized: "Não foi possível entender, repita por favor",
+          sentToGuide: "Enviado ao guia"
+        }
+      },
+      en: {
+        code: "en",
+        flag: "🇬🇧",
+        name: "Английский (English)",
+        nameAcc: "английский",
+        namePrep: "английском",
+        bcp47: "en-US",
+        warmPhrases: ["Hello everyone", "Thank you", "Yes, of course", "Let's begin"],
+        ui: {
+          overlayHint: "Select your language and tap below to join",
+          joinBtn: "Join Session",
+          pttIdle: "🎙 HOLD TO ASK",
+          pttSub: "Speak your question, then release to send to guide",
+          pttRec: "🔴 RECORDING:",
+          pttRecSub: "Release the button when you finish speaking",
+          secUnit: "sec...",
+          translating: "Speech received, translating...",
+          speaking: "Playing translation...",
+          unrecognized: "Speech not recognized, please repeat",
+          sentToGuide: "Sent to guide"
+        }
+      },
+      th: {
+        code: "th",
+        flag: "🇹🇭",
+        name: "Тайский (ไทย)",
+        nameAcc: "тайский",
+        namePrep: "тайском",
+        bcp47: "th-TH",
+        warmPhrases: [
+          "สวัสดีครับ", "ขอบคุณครับ", "ได้ครับ", "ไม่เป็นไรครับ",
+          "โอเคครับ", "ยินดีที่ได้รู้จักครับ", "กรุณาพูดใหม่อีกครั้ง"
+        ],
+        ui: {
+          overlayHint: "เลือกภาษาและแตะปุ่มด้านล่างเพื่อเข้าร่วม",
+          joinBtn: "เริ่มใช้งาน",
+          pttIdle: "🎙 กดค้างไว้เพื่อถาม",
+          pttSub: "พูดจนจบประโยคแล้วค่อยปล่อยนิ้วเพื่อส่งคำถาม",
+          pttRec: "🔴 กำลังบันทึกเสียง:",
+          pttRecSub: "พูดให้จบก่อน แล้วค่อยปล่อยปุ่มเพื่อแปล",
+          secUnit: "วินาที...",
+          translating: "ได้รับเสียงแล้ว กำลังแปล...",
+          speaking: "กำลังเล่นเสียงแปล...",
+          unrecognized: "พูดไม่ชัด กรุณาพูดใหม่อีกครั้ง",
+          sentToGuide: "ส่งถึงไกด์แล้ว"
+        }
+      },
+      es: {
+        code: "es",
+        flag: "🇪🇸",
+        name: "Испанский (Español)",
+        nameAcc: "испанский",
+        namePrep: "испанском",
+        bcp47: "es-ES",
+        warmPhrases: ["Hola a todos", "Muchas gracias", "De acuerdo", "Empecemos"],
+        ui: {
+          overlayHint: "Elija su idioma y toque el botón de abajo",
+          joinBtn: "Unirse",
+          pttIdle: "🎙 MANTENGA PARA PREGUNTAR",
+          pttSub: "Haga su pregunta y suelte para enviar al guía",
+          pttRec: "🔴 GRABANDO:",
+          pttRecSub: "Suelte el botón cuando termine de hablar",
+          secUnit: "seg...",
+          translating: "Voz recibida, traduciendo...",
+          speaking: "Reproduciendo traducción...",
+          unrecognized: "No se reconoció la voz, repita por favor",
+          sentToGuide: "Enviado al guía"
+        }
+      },
+      fr: {
+        code: "fr",
+        flag: "🇫🇷",
+        name: "Французский (Français)",
+        nameAcc: "французский",
+        namePrep: "французском",
+        bcp47: "fr-FR",
+        warmPhrases: ["Bonjour à tous", "Merci beaucoup", "D'accord", "Commençons"],
+        ui: {
+          overlayHint: "Choisissez votre langue et appuyez ci-dessous",
+          joinBtn: "Rejoindre",
+          pttIdle: "🎙 MAINTENIR POUR DEMANDER",
+          pttSub: "Posez votre question puis relâchez pour envoyer au guide",
+          pttRec: "🔴 ENREGISTREMENT:",
+          pttRecSub: "Relâchez après avoir parlé",
+          secUnit: "sec...",
+          translating: "Voix reçue, traduction en cours...",
+          speaking: "Lecture de la traduction...",
+          unrecognized: "Voix non reconnue, veuillez répéter",
+          sentToGuide: "Envoyé au guide"
+        }
+      },
+      de: {
+        code: "de",
+        flag: "🇩🇪",
+        name: "Немецкий (Deutsch)",
+        nameAcc: "немецкий",
+        namePrep: "немецком",
+        bcp47: "de-DE",
+        warmPhrases: ["Hallo zusammen", "Vielen Dank", "Einverstanden", "Fangen wir an"],
+        ui: {
+          overlayHint: "Wählen Sie Ihre Sprache und tippen Sie unten",
+          joinBtn: "Beitreten",
+          pttIdle: "🎙 GEDRÜCKT HALTEN ZUM FRAGEN",
+          pttSub: "Frage stellen und loslassen, um an den Guide zu senden",
+          pttRec: "🔴 AUFNAHME:",
+          pttRecSub: "Nach dem Sprechen loslassen",
+          secUnit: "Sek...",
+          translating: "Sprache empfangen, übersetze...",
+          speaking: "Übersetzung wird abgespielt...",
+          unrecognized: "Nicht erkannt, bitte wiederholen",
+          sentToGuide: "An Guide gesendet"
+        }
+      },
+      it: {
+        code: "it",
+        flag: "🇮🇹",
+        name: "Итальянский (Italiano)",
+        nameAcc: "итальянский",
+        namePrep: "итальянском",
+        bcp47: "it-IT",
+        warmPhrases: ["Buongiorno a tutti", "Grazie mille", "Va bene", "Iniziamo"],
+        ui: {
+          overlayHint: "Scegli la tua lingua e tocca il pulsante qui sotto",
+          joinBtn: "Partecipa",
+          pttIdle: "🎙 TIENI PREMUTO PER CHIEDERE",
+          pttSub: "Fai la tua domanda e rilascia per inviare alla guida",
+          pttRec: "🔴 REGISTRAZIONE:",
+          pttRecSub: "Rilascia il pulsante quando hai finito",
+          secUnit: "sec...",
+          translating: "Voce ricevuta, traduzione...",
+          speaking: "Riproduzione traduzione...",
+          unrecognized: "Voce non riconosciuta, ripeti per favore",
+          sentToGuide: "Inviato alla guida"
+        }
+      },
+      zh: {
+        code: "zh",
+        flag: "🇨🇳",
+        name: "Китайский (中文)",
+        nameAcc: "китайский (путунхуа)",
+        namePrep: "китайском",
+        bcp47: "zh-CN",
+        warmPhrases: ["大家好", "谢谢", "好的", "我们开始吧"],
+        ui: {
+          overlayHint: "请选择您的语言并点击下方按钮加入",
+          joinBtn: "加入房间",
+          pttIdle: "🎙 按住提问",
+          pttSub: "说完问题后松开手指发送给导游",
+          pttRec: "🔴 正在录音:",
+          pttRecSub: "请说完后再松开按钮",
+          secUnit: "秒...",
+          translating: "已收到语音，正在翻译...",
+          speaking: "正在播放翻译...",
+          unrecognized: "未识别到语音，请再说一次",
+          sentToGuide: "已发送给导游"
+        }
+      },
+      tr: {
+        code: "tr",
+        flag: "🇹🇷",
+        name: "Турецкий (Türkçe)",
+        nameAcc: "турецкий",
+        namePrep: "турецком",
+        bcp47: "tr-TR",
+        warmPhrases: ["Merhaba", "Teşekkür ederim", "Tamam", "Başlayalım"],
+        ui: {
+          overlayHint: "Dilinizi seçin ve aşağıdaki düğmeye dokunun",
+          joinBtn: "Katıl",
+          pttIdle: "🎙 SORMAK İÇİN BASILI TUTUN",
+          pttSub: "Sorunuzu söyleyin, rehbere göndermek için bırakın",
+          pttRec: "🔴 KAYDEDİLİYOR:",
+          pttRecSub: "Konuşurken basılı tutun, bitince bırakın",
+          secUnit: "sn...",
+          translating: "Ses alındı, çevriliyor...",
+          speaking: "Çeviri seslendiriliyor...",
+          unrecognized: "Ses anlaşılamadı, lütfen tekrar edin",
+          sentToGuide: "Rehbere gönderildi"
+        }
+      },
+      ar: {
+        code: "ar",
+        flag: "🇦🇪",
+        name: "Арабский (العربية)",
+        nameAcc: "арабский",
+        namePrep: "арабском",
+        bcp47: "ar-SA",
+        warmPhrases: ["مرحباً بالجميع", "شكراً جزيلاً", "حسناً", "لنبدأ"],
+        ui: {
+          overlayHint: "اختر لغتك واضغط على الزر أدناه للانضمام",
+          joinBtn: "انضمام",
+          pttIdle: "🎙 اضغط مطولاً للسؤال",
+          pttSub: "قل سؤالك ثم ارفع إصبعك للإرسال إلى المرشد",
+          pttRec: "🔴 جاري التسجيل:",
+          pttRecSub: "استمر بالضغط أثناء التحدث ثم اترك الزر",
+          secUnit: "ثانية...",
+          translating: "تم استلام الصوت، جاري الترجمة...",
+          speaking: "جاري تشغيل الترجمة...",
+          unrecognized: "لم يتم التعرف على الكلام، يرجى الإعادة",
+          sentToGuide: "تم الإرسال للمرشد"
+        }
+      },
+      ja: {
+        code: "ja",
+        flag: "🇯🇵",
+        name: "Японский (日本語)",
+        nameAcc: "японский",
+        namePrep: "японском",
+        bcp47: "ja-JP",
+        warmPhrases: ["こんにちは", "ありがとうございます", "かしこまりました", "始めましょう"],
+        ui: {
+          overlayHint: "言語を選択して下のボタンを押してください",
+          joinBtn: "参加する",
+          pttIdle: "🎙 長押しして質問する",
+          pttSub: "質問を話し終えてから指を離して送信",
+          pttRec: "🔴 録音中:",
+          pttRecSub: "話し終わったら離してください",
+          secUnit: "秒...",
+          translating: "音声を受信しました。翻訳中...",
+          speaking: "翻訳を再生中...",
+          unrecognized: "聞き取れませんでした。もう一度お話しください",
+          sentToGuide: "ガイドに送信しました"
+        }
+      },
+      ko: {
+        code: "ko",
+        flag: "🇰🇷",
+        name: "Корейский (한국어)",
+        nameAcc: "корейский",
+        namePrep: "корейском",
+        bcp47: "ko-KR",
+        warmPhrases: ["안녕하세요", "감사합니다", "네, 알겠습니다", "시작하겠습니다"],
+        ui: {
+          overlayHint: "언어를 선택하고 아래 버튼을 눌러 참여하세요",
+          joinBtn: "참여하기",
+          pttIdle: "🎙 길게 눌러 질문하기",
+          pttSub: "질문을 마친 후 손을 떼면 가이드에게 전송됩니다",
+          pttRec: "🔴 녹음 중:",
+          pttRecSub: "말씀이 끝나면 버튼을 놓아주세요",
+          secUnit: "초...",
+          translating: "음성 수신 완료, 번역 중...",
+          speaking: "번역 음성 재생 중...",
+          unrecognized: "음성이 인식되지 않았습니다. 다시 말씀해 주세요",
+          sentToGuide: "가이드에게 전송됨"
+        }
+      },
+      uk: {
+        code: "uk",
+        flag: "🇺🇦",
+        name: "Украинский (Українська)",
+        nameAcc: "украинский",
+        namePrep: "украинском",
+        bcp47: "uk-UA",
+        warmPhrases: ["Вітаю", "Дякую", "Добре", "Починаємо"],
+        ui: {
+          overlayHint: "Оберіть мову та натисніть кнопку нижче",
+          joinBtn: "Приєднатися",
+          pttIdle: "🎙 УТРИМУЙТЕ, ЩОБ ЗАПИТАТИ",
+          pttSub: "Скажіть запитання та відпустіть для відправки гіду",
+          pttRec: "🔴 ЗАПИС:",
+          pttRecSub: "Відпустіть кнопку після завершення фрази",
+          secUnit: "сек...",
+          translating: "Мову прийнято, перекладаємо...",
+          speaking: "Озвучуємо переклад...",
+          unrecognized: "Не розпізнано, повторіть, будь ласка",
+          sentToGuide: "Надіслано гіду"
+        }
+      },
+      pl: {
+        code: "pl",
+        flag: "🇵🇱",
+        name: "Польский (Polski)",
+        nameAcc: "польский",
+        namePrep: "польском",
+        bcp47: "pl-PL",
+        warmPhrases: ["Dzień dobry", "Dziękuję", "Dobrze", "Zaczynajmy"],
+        ui: {
+          overlayHint: "Wybierz język i kliknij przycisk poniżej",
+          joinBtn: "Dołącz",
+          pttIdle: "🎙 PRZYTRZYMAJ, ABY ZAPYTAĆ",
+          pttSub: "Zadaj pytanie i puść, aby wysłać do przewodnika",
+          pttRec: "🔴 NAGRYWANIE:",
+          pttRecSub: "Puść przycisk po zakończeniu wypowiedzi",
+          secUnit: "sek...",
+          translating: "Odebrano głos, tłumaczenie...",
+          speaking: "Odtwarzanie tłumaczenia...",
+          unrecognized: "Nie rozpoznano mowy, powtórz proszę",
+          sentToGuide: "Wysłano do przewodnika"
+        }
+      },
+      nl: {
+        code: "nl",
+        flag: "🇳🇱",
+        name: "Нидерландский (Nederlands)",
+        nameAcc: "нидерландский",
+        namePrep: "нидерландском",
+        bcp47: "nl-NL",
+        warmPhrases: ["Hallo allemaal", "Dank u wel", "Goed", "Laten we beginnen"],
+        ui: {
+          overlayHint: "Kies uw taal en tik hieronder om deel te nemen",
+          joinBtn: "Deelnemen",
+          pttIdle: "🎙 INGEDRUKT HOUDEN OM TE VRAGEN",
+          pttSub: "Stel uw vraag en laat los om naar de gids te sturen",
+          pttRec: "🔴 OPNEMEN:",
+          pttRecSub: "Laat los als u klaar bent met spreken",
+          secUnit: "sec...",
+          translating: "Spraak ontvangen, vertalen...",
+          speaking: "Vertaling afspelen...",
+          unrecognized: "Niet herkend, herhaal alstublieft",
+          sentToGuide: "Verzonden naar gids"
+        }
+      },
+      he: {
+        code: "he",
+        flag: "🇮🇱",
+        name: "Иврит (עברית)",
+        nameAcc: "иврит",
+        namePrep: "иврите",
+        bcp47: "he-IL",
+        warmPhrases: ["שלום לכולם", "תודה רבה", "בסדר", "בואו נתחיל"],
+        ui: {
+          overlayHint: "בחר שפה ולחץ למטה להצטרפות",
+          joinBtn: "הצטרפות",
+          pttIdle: "🎙 החזק כדי לשאול",
+          pttSub: "שאל את השאלה ושחרר לשליחה למדריך",
+          pttRec: "🔴 מקליט:",
+          pttRecSub: "שחרר בסיום הדיבור",
+          secUnit: "שנ׳...",
+          translating: "הדיבור נקלט, מתרגם...",
+          speaking: "משמיע תרגום...",
+          unrecognized: "הדיבור לא זוהה, אנא חזור שוב",
+          sentToGuide: "נשלח למדריך"
+        }
+      },
+      vi: {
+        code: "vi",
+        flag: "🇻🇳",
+        name: "Вьетнамский (Tiếng Việt)",
+        nameAcc: "вьетнамский",
+        namePrep: "вьетнамском",
+        bcp47: "vi-VN",
+        warmPhrases: ["Xin chào", "Cảm ơn bạn", "Được rồi", "Bắt đầu thôi"],
+        ui: {
+          overlayHint: "Chọn ngôn ngữ và nhấn nút bên dưới để tham gia",
+          joinBtn: "Tham gia",
+          pttIdle: "🎙 GIỮ ĐỂ HỎI",
+          pttSub: "Nói hết câu rồi thả tay ra để gửi cho hướng dẫn viên",
+          pttRec: "🔴 ĐANG GHI ÂM:",
+          pttRecSub: "Thả nút sau khi nói xong",
+          secUnit: "giây...",
+          translating: "Đã nhận giọng nói, đang dịch...",
+          speaking: "Đang phát bản dịch...",
+          unrecognized: "Không nhận diện được, vui lòng nói lại",
+          sentToGuide: "Đã gửi cho hướng dẫn viên"
+        }
+      },
+      id: {
+        code: "id",
+        flag: "🇮🇩",
+        name: "Индонезийский (Bahasa)",
+        nameAcc: "индонезийский",
+        namePrep: "индонезийском",
+        bcp47: "id-ID",
+        warmPhrases: ["Halo", "Terima kasih", "Baik", "Mari kita mulai"],
+        ui: {
+          overlayHint: "Pilih bahasa Anda dan ketuk tombol di bawah",
+          joinBtn: "Gabung",
+          pttIdle: "🎙 TAHAN UNTUK BERTANYA",
+          pttSub: "Selesaikan kalimat lalu lepaskan untuk mengirim ke pemandu",
+          pttRec: "🔴 MEREKAM:",
+          pttRecSub: "Lepaskan tombol setelah selesai bicara",
+          secUnit: "dtk...",
+          translating: "Suara diterima, menerjemahkan...",
+          speaking: "Memutar terjemahan...",
+          unrecognized: "Suara tidak dikenali, silakan ulangi",
+          sentToGuide: "Terkirim ke pemandu"
+        }
+      },
+      hi: {
+        code: "hi",
+        flag: "🇮🇳",
+        name: "Хинди (हिन्दी)",
+        nameAcc: "хинди",
+        namePrep: "хинди",
+        bcp47: "hi-IN",
+        warmPhrases: ["नमस्ते", "धन्यवाद", "ठीक है", "चलिए शुरू करते हैं"],
+        ui: {
+          overlayHint: "अपनी भाषा चुनें और जुड़ने के लिए नीचे दबाएं",
+          joinBtn: "जुड़ें",
+          pttIdle: "🎙 पूछने के लिए दबाए रखें",
+          pttSub: "वाक्य पूरा होने पर गाइड को भेजने के लिए छोड़ें",
+          pttRec: "🔴 रिकॉर्डिंग:",
+          pttRecSub: "बोलना समाप्त होने पर बटन छोड़ें",
+          secUnit: "सेकंड...",
+          translating: "आवाज़ प्राप्त हुई, अनुवाद हो रहा है...",
+          speaking: "अनुवाद सुनाया जा रहा है...",
+          unrecognized: "आवाज़ स्पष्ट नहीं है, कृपया फिर से बोलें",
+          sentToGuide: "गाइड को भेजा गया"
+        }
+      },
+      kk: {
+        code: "kk",
+        flag: "🇰🇿",
+        name: "Казахский (Қазақша)",
+        nameAcc: "казахский",
+        namePrep: "казахском",
+        bcp47: "kk-KZ",
+        warmPhrases: ["Сәлеметсіз бе", "Рақмет", "Жақсы", "Бастайық"],
+        ui: {
+          overlayHint: "Тілді таңдап, қосылу үшін төмендегі түймені басыңыз",
+          joinBtn: "Қосылу",
+          pttIdle: "🎙 СҰРАУ ҮШІН БАСЫП ТҰРЫҢЫЗ",
+          pttSub: "Сөйлемді аяқтап, гидке жіберу үшін жіберіңіз",
+          pttRec: "🔴 ЖАЗЫЛУДА:",
+          pttRecSub: "Сөйлеп болған соң түймені жіберіңіз",
+          secUnit: "сек...",
+          translating: "Дауыс қабылданды, аударылуда...",
+          speaking: "Аударма дыбысталуда...",
+          unrecognized: "Сөз танылмады, қайталап айтыңызшы",
+          sentToGuide: "Гидке жіберілді"
+        }
+      }
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const guestRoomParam = urlParams.get("room");
+    const hostRoomParam = urlParams.get("host");
+    const forceAdminParam = urlParams.get("admin") === "1";
+    const urlModeParam = urlParams.get("mode");
+    const role = guestRoomParam ? "guest" : "host";
+
+    let lang1 = "ru";
+    let lang2 = "th";
+    let groupMode = urlModeParam === "group";
+
+    function detectBrowserLangCode() {
+      try {
+        const navLangs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || "en"];
+        for (const raw of navLangs) {
+          const shortCode = String(raw).toLowerCase().slice(0, 2);
+          if (LANGUAGES[shortCode]) return shortCode;
+        }
+      } catch (e) {}
+      return "en";
+    }
+
+    const urlL1 = urlParams.get("l1");
+    const urlL2 = urlParams.get("l2");
+    if (urlL1 && LANGUAGES[urlL1]) lang1 = urlL1;
+    if (urlL2 && LANGUAGES[urlL2]) {
+      lang2 = urlL2;
+    } else if (role === "guest" && groupMode) {
+      lang2 = detectBrowserLangCode();
+    }
+
+    if (!urlL1 && !urlL2 && role === "host") {
+      try {
+        const savedPair = JSON.parse(localStorage.getItem(LANG_PAIR_STORAGE_KEY) || "null");
+        if (savedPair && LANGUAGES[savedPair.l1] && LANGUAGES[savedPair.l2]) {
+          lang1 = savedPair.l1;
+          lang2 = savedPair.l2;
+        }
+      } catch (e) {}
+    }
+    if (!groupMode && lang1 === lang2) {
+      lang2 = (lang1 === "ru" ? "th" : "ru");
+    }
+
+    let activeApiKey = "";
+    let isKeyLoading = false;
+    let currentRoomId = "";
+    let meetingStopped = false;
+    let singlePhoneMode = false;
+    let speakerMode = false;
+    let fastBrowserTtsMode = false;
+    try {
+      fastBrowserTtsMode = localStorage.getItem(FAST_TTS_STORAGE_KEY) === "1";
+    } catch (e) {}
+
+    // Счётчик активных параллельных переводов (ни один вопрос не отменяет другой!)
+    let inFlightTurnsCount = 0;
+    let queuedAudioEnds = []; // таймстемпы окончания запланированных аудиоклипов для индикатора очереди
+
+    let audioCtx = null;
+    let mixerDest = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recSeconds = 0;
+    let recInterval = null;
+    let wakeLock = null;
+
+    let peer = null;
+    // Мульти-подключения гостей: peerId -> { conn, lang, guestNum, guestName, chunks: [] }
+    const guestConnections = new Map();
+    let guestJoinCounter = 0;
+    const guestNumByPeer = new Map();
+    let conn = null;
+    let peerReconnectTimer = null;
+    let guestShareUrl = "";
+    let hostResumeUrl = "";
+
+    // Идентификатор гостя, присвоенный хостом
+    let myAssignedGuestNum = 0;
+    let myGuestName = "";
+
+    let guestAudioUnlocked = false;
+    let guestAudioMuted = false;
+    let guestMicAvailable = false;
+    let guestWavQueue = [];
+    let isPlayingGuestWav = false;
+
+    let isRecordingPTT = false;
+    let pttBufferedChunks = [];
+    let pttStartTimestamp = 0;
+    let pttTimerInterval = null;
+    let releaseTailTimer = null;
+
+    let micStream = null;
+    let micSourceNode = null;
+    let micRecGain = null;
+    let pttReleaseIdx = -1;
+    let pttHeld = false;
+    let scriptNode = null;
+    let muteGainNode = null;
+    let nextPlayTime = 0;
+    let nextGuestMixTime = 0;
+    let activeOutputSources = [];
+    let statusHideTimer = null;
+
+    // Единый лог чата: { time, side, sender, original, translation, flag }
+    let transcriptLog = [];
+
+    const setupScreen = document.getElementById("setupScreen");
+    const roomScreen = document.getElementById("roomScreen");
+    const guestEntryOverlay = document.getElementById("guestEntryOverlay");
+    const activeRoomBody = document.getElementById("activeRoomBody");
+    const connBadge = document.getElementById("connBadge");
+    const transcriptBox = document.getElementById("transcriptBox");
+    const pttBtn = document.getElementById("pttBtn");
+    const pttLabel = document.getElementById("pttLabel");
+    const pttSub = document.getElementById("pttSub");
+    const micLevelBar = document.getElementById("micLevelBar");
+    const setupErrorBox = document.getElementById("setupErrorBox");
+    const apiKeyFieldWrapper = document.getElementById("apiKeyFieldWrapper");
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const startHostBtn = document.getElementById("startHostBtn");
+    const resumeAudioBanner = document.getElementById("resumeAudioBanner");
+
+    const processingStatusBar = document.getElementById("processingStatusBar");
+    const processingSpinner = document.getElementById("processingSpinner");
+    const processingStatusText = document.getElementById("processingStatusText");
+
+    const lang1Select = document.getElementById("lang1Select");
+    const lang2Select = document.getElementById("lang2Select");
+    const roomLang1Select = document.getElementById("roomLang1Select");
+    const roomLang2Select = document.getElementById("roomLang2Select");
+    const roomGroupHostLangSelect = document.getElementById("roomGroupHostLangSelect");
+    const guestEntryLangSelect = document.getElementById("guestEntryLangSelect");
+    const guestInRoomLangSelect = document.getElementById("guestInRoomLangSelect");
+
+    // Модели перевода и озвучки (оставлены без изменений)
+    const TRANSLATION_MODELS = [
+      { name: "gemini-3.6-flash", useThinkingZero: false },
+      { name: "gemini-2.5-flash", useThinkingZero: true }
+    ];
+
+    const TTS_MODELS = [
+      "gemini-3.8-flash-tts",
+      "gemini-3.8-flash-lite-tts"
+    ];
+
+    function getL1() { return LANGUAGES[lang1] || LANGUAGES.ru; }
+    function getL2() { return LANGUAGES[lang2] || LANGUAGES.th; }
+
+    function populateLanguageSelectors() {
+      const selects = [
+        lang1Select, lang2Select,
+        roomLang1Select, roomLang2Select, roomGroupHostLangSelect,
+        guestEntryLangSelect, guestInRoomLangSelect
+      ];
+      for (const sel of selects) {
+        if (!sel) continue;
+        sel.innerHTML = "";
+        for (const key of Object.keys(LANGUAGES)) {
+          const item = LANGUAGES[key];
+          const opt = document.createElement("option");
+          opt.value = item.code;
+          opt.textContent = `${item.flag} ${item.name}`;
+          sel.appendChild(opt);
+        }
+      }
+      syncLanguageUI();
+    }
+
+    function syncSetupFormatUI() {
+      const btnPair = document.getElementById("setupFormatPairBtn");
+      const btnGroup = document.getElementById("setupFormatGroupBtn");
+      const lang2Wrap = document.getElementById("lang2SetupWrapper");
+      const swapBtn = document.getElementById("swapLangsBtn");
+      const groupHint = document.getElementById("setupGroupLangHint");
+      const lang1Cap = document.getElementById("lang1Caption");
+      const langTitle = document.getElementById("langBlockTitle");
+      const langBadge = document.getElementById("langBlockBadge");
+
+      if (!btnPair || !btnGroup) return;
+      if (groupMode) {
+        btnGroup.className = "py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20";
+        btnPair.className = "py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-950 text-slate-300 border-slate-700 hover:border-slate-500";
+        if (lang2Wrap) lang2Wrap.classList.add("hidden");
+        if (swapBtn) swapBtn.classList.add("hidden");
+        if (groupHint) groupHint.classList.remove("hidden");
+        if (lang1Cap) lang1Cap.textContent = "Ваш язык (язык гида / ведущего)";
+        if (langTitle) langTitle.textContent = "🎙 Язык гида и мультиязычный чат";
+        if (langBadge) langBadge.textContent = "До 15+ гостей";
+        startHostBtn.textContent = "Создать комнату для группы / квеста";
+      } else {
+        btnPair.className = "py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20";
+        btnGroup.className = "py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-950 text-slate-300 border-slate-700 hover:border-slate-500";
+        if (lang2Wrap) lang2Wrap.classList.remove("hidden");
+        if (swapBtn) swapBtn.classList.remove("hidden");
+        if (groupHint) groupHint.classList.add("hidden");
+        if (lang1Cap) lang1Cap.textContent = "Ваш язык (Телефон 1)";
+        if (langTitle) langTitle.textContent = "🌐 Направление перевода (работает в обе стороны)";
+        if (langBadge) langBadge.textContent = "Двусторонний AI";
+        startHostBtn.textContent = "Начать встречу";
+      }
+      syncLanguageUI();
+    }
+
+    document.getElementById("setupFormatPairBtn").addEventListener("click", () => {
+      groupMode = false;
+      syncSetupFormatUI();
+    });
+    document.getElementById("setupFormatGroupBtn").addEventListener("click", () => {
+      groupMode = true;
+      syncSetupFormatUI();
+    });
+
+    function syncLanguageUI() {
+      const L1 = getL1();
+      const L2 = getL2();
+
+      if (lang1Select) lang1Select.value = lang1;
+      if (lang2Select) lang2Select.value = lang2;
+      if (roomLang1Select) roomLang1Select.value = lang1;
+      if (roomLang2Select) roomLang2Select.value = lang2;
+      if (roomGroupHostLangSelect) roomGroupHostLangSelect.value = lang1;
+      if (guestEntryLangSelect) guestEntryLangSelect.value = lang2;
+      if (guestInRoomLangSelect) guestInRoomLangSelect.value = lang2;
+
+      const pairBadge = document.getElementById("headerPairBadge");
+      if (pairBadge) {
+        if (role === "host" && groupMode) {
+          pairBadge.textContent = `${L1.flag} ${L1.code.toUpperCase()} ➔ 👥 BYOD`;
+        } else {
+          pairBadge.textContent = `${L1.flag} ${L1.code.toUpperCase()} ⇄ ${L2.flag} ${L2.code.toUpperCase()}`;
+        }
+      }
+
+      const styleLabel = document.getElementById("styleSelectLabel");
+      if (styleLabel) {
+        styleLabel.textContent = groupMode
+          ? `Стиль речи при переводе группе (от ${L1.name})`
+          : `Стиль речи при переводе (${L1.name} ⇄ ${L2.name})`;
+      }
+
+      const guestHint = document.getElementById("guestOverlayNativeHint");
+      if (guestHint) guestHint.textContent = `(${L2.ui.overlayHint})`;
+      const joinGuestBtn = document.getElementById("joinMeetingGuestBtn");
+      if (joinGuestBtn && !joinGuestBtn.disabled) {
+        joinGuestBtn.textContent = `🔊 Подключиться (${L2.ui.joinBtn})`;
+      }
+
+      if (!isRecordingPTT) {
+        resetPttButtonAppearance();
+      }
+    }
+
+    function sendToGuest(peerId, payload) {
+      const item = guestConnections.get(peerId);
+      if (item && item.conn && item.conn.open) {
+        try { item.conn.send(payload); } catch (e) {}
+      }
+    }
+
+    function broadcastToAllGuests(payload, filterFn = null) {
+      for (const [peerId, item] of guestConnections.entries()) {
+        if (item.conn && item.conn.open) {
+          if (!filterFn || filterFn(item, peerId)) {
+            try { item.conn.send(payload); } catch (e) {}
+          }
+        }
+      }
+    }
+
+    function hasAnyOpenGuest() {
+      for (const item of guestConnections.values()) {
+        if (item.conn && item.conn.open) return true;
+      }
+      return false;
+    }
+
+    function formatGuestDisplayName(guestNum, guestName, langCode) {
+      const info = LANGUAGES[langCode] || LANGUAGES.en;
+      const cleanName = (guestName || "").trim();
+      const numPart = guestNum ? `#${guestNum}` : "";
+      if (cleanName && numPart) return `${info.flag} Турист ${numPart} (${cleanName})`;
+      if (cleanName) return `${info.flag} ${cleanName}`;
+      if (numPart) return `${info.flag} Турист ${numPart}`;
+      return `${info.flag} Гость`;
+    }
+
+    function updateGroupRosterUI() {
+      const statusEl = document.getElementById("partnerStatus");
+      const rosterBox = document.getElementById("groupRosterBox");
+      const rosterTags = document.getElementById("groupRosterTags");
+
+      const activeGuests = [...guestConnections.values()].filter(g => g.conn && g.conn.open);
+
+      if (!groupMode) {
+        if (rosterBox) rosterBox.classList.add("hidden");
+        if (activeGuests.length > 0) {
+          statusEl.textContent = "✅ Второй телефон подключён!";
+          statusEl.className = "text-xs text-emerald-400 mt-2 font-semibold";
+        } else {
+          statusEl.textContent = "⏳ Ожидание подключения второго телефона...";
+          statusEl.className = "text-xs text-amber-400 mt-2 font-medium";
+        }
+        return;
+      }
+
+      if (rosterBox) rosterBox.classList.remove("hidden");
+      if (activeGuests.length === 0) {
+        statusEl.textContent = "⏳ Ожидание подключения гостей по QR-коду...";
+        statusEl.className = "text-xs text-amber-400 mt-2 font-medium";
+        if (rosterTags) {
+          rosterTags.innerHTML = `<span class="text-slate-500 text-xs">Пока никто не подключился — покажите группе QR-код выше</span>`;
+        }
+        return;
+      }
+
+      statusEl.textContent = `✅ В комнате участников: ${activeGuests.length}`;
+      statusEl.className = "text-xs text-emerald-400 mt-2 font-semibold";
+
+      if (rosterTags) {
+        rosterTags.innerHTML = "";
+        for (const g of activeGuests) {
+          const info = LANGUAGES[g.lang || lang2] || LANGUAGES.en;
+          const badge = document.createElement("span");
+          badge.className = "bg-emerald-500/15 border border-emerald-500/35 text-emerald-200 px-2.5 py-1 rounded-lg font-medium";
+          const nameTag = g.guestName ? ` • ${g.guestName}` : "";
+          badge.textContent = `${info.flag} #${g.guestNum}${nameTag} (${info.code.toUpperCase()})`;
+          rosterTags.appendChild(badge);
+        }
+      }
+    }
+
+    function syncConfigToGuest(targetPeerId = null) {
+      if (role !== "host") return;
+      const payload = {
+        type: "SESSION_CONFIG_SYNC",
+        apiKey: groupMode ? "" : activeApiKey,
+        l1: lang1,
+        l2: lang2,
+        groupMode: groupMode,
+        glossary: document.getElementById("glossaryInput").value || "",
+        style: styleSelectEl.value || "business",
+        fastTts: fastBrowserTtsMode
+      };
+      if (targetPeerId) {
+        sendToGuest(targetPeerId, payload);
+      } else {
+        broadcastToAllGuests(payload);
+      }
+    }
+
+    function applyLanguageChange(newL1, newL2, changedSide) {
+      if (!groupMode && newL1 === newL2) {
+        if (changedSide === 1) {
+          newL2 = lang1;
+        } else {
+          newL1 = lang2;
+        }
+      }
+      lang1 = newL1;
+      lang2 = newL2;
+      try {
+        localStorage.setItem(LANG_PAIR_STORAGE_KEY, JSON.stringify({ l1: lang1, l2: lang2 }));
+      } catch (e) {}
+      syncLanguageUI();
+      savePersistentSession();
+
+      if (role === "host" && currentRoomId) {
+        updateHostQrCode(currentRoomId);
+        syncConfigToGuest();
+      }
+    }
+
+    populateLanguageSelectors();
+    syncSetupFormatUI();
+
+    lang1Select.addEventListener("change", () => applyLanguageChange(lang1Select.value, lang2Select.value, 1));
+    lang2Select.addEventListener("change", () => applyLanguageChange(lang1Select.value, lang2Select.value, 2));
+    roomLang1Select.addEventListener("change", () => applyLanguageChange(roomLang1Select.value, roomLang2Select.value, 1));
+    roomLang2Select.addEventListener("change", () => applyLanguageChange(roomLang1Select.value, roomLang2Select.value, 2));
+    roomGroupHostLangSelect.addEventListener("change", () => {
+      lang1 = roomGroupHostLangSelect.value;
+      try { localStorage.setItem(LANG_PAIR_STORAGE_KEY, JSON.stringify({ l1: lang1, l2: lang2 })); } catch (e) {}
+      syncLanguageUI();
+      savePersistentSession();
+      if (role === "host" && currentRoomId) {
+        updateHostQrCode(currentRoomId);
+        syncConfigToGuest();
+      }
+    });
+
+    guestEntryLangSelect.addEventListener("change", () => {
+      lang2 = guestEntryLangSelect.value;
+      syncLanguageUI();
+    });
+    guestInRoomLangSelect.addEventListener("change", () => {
+      lang2 = guestInRoomLangSelect.value;
+      syncLanguageUI();
+      if (role === "guest" && conn && conn.open) {
+        conn.send({ type: "GUEST_SET_LANG", lang: lang2, name: myGuestName });
+      }
+    });
+
+    document.getElementById("guestMuteAudioBtn").addEventListener("click", () => {
+      guestAudioMuted = !guestAudioMuted;
+      const btn = document.getElementById("guestMuteAudioBtn");
+      if (guestAudioMuted) {
+        btn.textContent = "🔇 Звук: ВЫКЛ (чат)";
+        btn.className = "py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-950 text-slate-400 border-slate-800";
+        stopCurrentPlayback();
+        guestWavQueue = [];
+      } else {
+        btn.textContent = "🔊 Звук: ВКЛ";
+        btn.className = "py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500";
+      }
+    });
+
+    document.getElementById("swapLangsBtn").addEventListener("click", () => {
+      applyLanguageChange(lang2, lang1, 1);
+    });
+    document.getElementById("roomSwapLangsBtn").addEventListener("click", () => {
+      applyLanguageChange(lang2, lang1, 1);
+    });
+
+    function formatTimeMMSS(totalSec) {
+      const m = String(Math.floor(totalSec / 60)).padStart(2, "0");
+      const s = String(totalSec % 60).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    // ================= СИНХРОННЫЙ ИНДИКАТОР ЗАГРУЗКИ И ПРЕДУПРЕЖДЕНИЙ =================
+    function setBottomStatus(mode, text, broadcastToPeer = false, autoHideMs = 0) {
+      clearTimeout(statusHideTimer);
+
+      if (mode === "hidden") {
+        processingStatusBar.classList.add("hidden");
+      } else {
+        processingStatusBar.classList.remove("hidden");
+        processingStatusText.textContent = text;
+
+        if (mode === "loading") {
+          processingStatusBar.className = "glass border-indigo-400/50 bg-indigo-950/70 rounded-xl px-4 py-3 flex items-center justify-center gap-3 text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-500/10";
+          processingSpinner.classList.remove("hidden");
+          processingStatusText.className = "text-indigo-200 text-center";
+        } else if (mode === "warn") {
+          processingStatusBar.className = "glass border-amber-400/60 bg-amber-950/75 rounded-xl px-4 py-3 flex items-center justify-center gap-2.5 text-xs sm:text-sm font-semibold shadow-lg shadow-amber-500/10";
+          processingSpinner.classList.add("hidden");
+          processingStatusText.className = "text-amber-200 text-center";
+        } else if (mode === "error") {
+          processingStatusBar.className = "glass border-rose-500/60 bg-rose-950/75 rounded-xl px-4 py-3 flex items-center justify-center gap-2.5 text-xs sm:text-sm font-semibold shadow-lg shadow-rose-500/10";
+          processingSpinner.classList.add("hidden");
+          processingStatusText.className = "text-rose-200 text-center";
+        }
+      }
+
+      if (autoHideMs > 0 && mode !== "hidden") {
+        statusHideTimer = setTimeout(() => {
+          processingStatusBar.classList.add("hidden");
+        }, autoHideMs);
+      }
+
+      if (broadcastToPeer) {
+        const syncPayload = {
+          type: "STATUS_SYNC",
+          mode: mode,
+          text: text,
+          autoHideMs: autoHideMs
+        };
+        if (role === "host") {
+          broadcastToAllGuests(syncPayload);
+        } else if (conn && conn.open) {
+          conn.send(syncPayload);
+        }
+      }
+    }
+
+    // ================= УТИЛИТЫ ШИФРОВАНИЯ И СЕССИИ =================
+    function encodeKeyToken(plainKey) {
+      let xored = "";
+      for (let i = 0; i < plainKey.length; i++) {
+        const code = plainKey.charCodeAt(i) ^ CIPHER_SALT.charCodeAt(i % CIPHER_SALT.length);
+        xored += String.fromCharCode(code);
+      }
+      return btoa(xored).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    function decodeKeyToken(token) {
+      try {
+        let b64 = token.replace(/-/g, "+").replace(/_/g, "/");
+        while (b64.length % 4) b64 += "=";
+        const xored = atob(b64);
+        let plain = "";
+        for (let i = 0; i < xored.length; i++) {
+          const code = xored.charCodeAt(i) ^ CIPHER_SALT.charCodeAt(i % CIPHER_SALT.length);
+          plain += String.fromCharCode(code);
+        }
+        return plain;
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function savePersistentSession() {
+      if (role !== "host" || !currentRoomId || meetingStopped) return;
+      try {
+        const payload = {
+          roomId: currentRoomId,
+          glossary: document.getElementById("glossaryInput").value || "",
+          recSeconds: recSeconds,
+          transcriptLog: transcriptLog,
+          singlePhoneMode: singlePhoneMode,
+          groupMode: groupMode,
+          lang1: lang1,
+          lang2: lang2,
+          active: true,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {}
+    }
+
+    function loadPersistentSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.active && parsed.roomId) return parsed;
+      } catch (e) {}
+      return null;
+    }
+
+    function clearPersistentSession() {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (e) {}
+    }
+
+    function saveGuestTranscript() {
+      if (role !== "guest" || !guestRoomParam) return;
+      try {
+        localStorage.setItem("ru_th_guest_log_" + guestRoomParam, JSON.stringify(transcriptLog));
+      } catch (e) {}
+    }
+
+    function loadGuestTranscript() {
+      if (role !== "guest" || !guestRoomParam) return [];
+      try {
+        const raw = localStorage.getItem("ru_th_guest_log_" + guestRoomParam);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function renderSavedTranscript(items) {
+      if (!items || items.length === 0) return;
+      transcriptLog = items;
+      transcriptBox.innerHTML = "";
+      for (const item of items) {
+        renderChatBubbleDOM(item);
+      }
+      transcriptBox.scrollTop = transcriptBox.scrollHeight;
+    }
+
+    async function requestScreenWakeLock() {
+      try {
+        if ("wakeLock" in navigator && !wakeLock) {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => { wakeLock = null; });
+        }
+      } catch (e) {}
+    }
+
+    // Секретное открытие/скрытие админ-панели ключа (5 нажатий на заголовок в шапке)
+    let brandTapCount = 0;
+    let brandTapTimer = null;
+    document.getElementById("brandHeader").addEventListener("click", () => {
+      if (role !== "host") return;
+      brandTapCount++;
+      clearTimeout(brandTapTimer);
+      brandTapTimer = setTimeout(() => { brandTapCount = 0; }, 1500);
+      if (brandTapCount >= 5) {
+        brandTapCount = 0;
+        apiKeyFieldWrapper.classList.remove("hidden");
+        document.getElementById("hideAdminPanelBtn").classList.remove("hidden");
+        if (activeApiKey) apiKeyInput.value = activeApiKey;
+      }
+    });
+
+    document.getElementById("hideAdminPanelBtn").addEventListener("click", () => {
+      if (activeApiKey && activeApiKey.startsWith("AIza")) {
+        apiKeyFieldWrapper.classList.add("hidden");
+      }
+    });
+
+    // ================= ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ (2 ТЕЛЕФОНА / 1 ТЕЛЕФОН / ГРУППА-КВЕСТ) =================
+    function setTranslationMode(modeName) {
+      singlePhoneMode = (modeName === "one");
+      groupMode = (modeName === "group");
+
+      const btnTwo = document.getElementById("modeTwoPhonesBtn");
+      const btnOne = document.getElementById("modeOnePhoneBtn");
+      const btnGroup = document.getElementById("modeGroupBtn");
+      const instructionBox = document.getElementById("modeInstructionBox");
+      const qrBox = document.getElementById("qrBox");
+      const qrTitle = document.getElementById("qrBoxTitle");
+      const qrDesc = document.getElementById("qrBoxDesc");
+      const pairWrap = document.getElementById("roomLangPairWrap");
+      const groupLangWrap = document.getElementById("roomGroupHostLangWrap");
+
+      const activeCls = "py-2.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20";
+      const idleCls = "py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500";
+
+      btnTwo.className = (!singlePhoneMode && !groupMode) ? activeCls : idleCls;
+      btnOne.className = singlePhoneMode ? activeCls : idleCls;
+      btnGroup.className = groupMode ? activeCls : idleCls;
+
+      if (singlePhoneMode) {
+        qrBox.classList.add("hidden");
+        pairWrap.classList.remove("hidden");
+        groupLangWrap.classList.add("hidden");
+        instructionBox.innerHTML = `
+          <div class="font-semibold text-emerald-400 mb-1">Как использовать (перевод с 1 телефона):</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-300">
+            <li>Второй телефон и QR-код <b>не нужны</b> — используйте только это устройство.</li>
+            <li><b>Отключите наушники</b>, чтобы оба собеседника слышали перевод по громкой связи.</li>
+            <li>Говорите по очереди на любом из двух выбранных языков: зажали кнопку → договорили → отпустили.</li>
+          </ol>
+        `;
+      } else if (groupMode) {
+        qrBox.classList.remove("hidden");
+        pairWrap.classList.add("hidden");
+        groupLangWrap.classList.remove("hidden");
+        qrTitle.textContent = "QR-код для группы / участников квеста (BYOD)";
+        qrDesc.textContent = "Гости сканируют QR-код своими телефонами, выбирают свой язык и подключают свои наушники (или читают чат).";
+        instructionBox.innerHTML = `
+          <div class="font-semibold text-emerald-400 mb-1">Как вести квест / экскурсию (Группа BYOD):</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-300">
+            <li>Покажите группе <b>QR-код</b> выше — каждый турист заходит со своего телефона и выбирает <b>свой язык</b>.</li>
+            <li>Вы зажимаете зелёную кнопку и говорите — каждый гость одновременно слышит перевод на своём языке и видит сообщение в чате.</li>
+            <li>Даже если <b>несколько туристов одновременно</b> запишут свои вопросы, ни один не пропадёт: все вопросы появятся в чате карточками, а их озвучка проиграется вам в наушник строго по очереди.</li>
+          </ol>
+        `;
+      } else {
+        qrBox.classList.remove("hidden");
+        pairWrap.classList.remove("hidden");
+        groupLangWrap.classList.add("hidden");
+        qrTitle.textContent = "Подключение второго телефона";
+        qrDesc.textContent = "Наведите камеру второго телефона на QR-код или отправьте ссылку кнопкой ниже.";
+        instructionBox.innerHTML = `
+          <div class="font-semibold text-emerald-400 mb-1">Как использовать (перевод с 2 телефонов и наушников):</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-300">
+            <li>Этот телефон показывает <b>QR-код</b> ниже — второй телефон партнёра сканирует его и нажимает «Подключиться».</li>
+            <li>Оба участника надевают свои <b>Bluetooth-наушники</b> (или работают через динамики на расстоянии).</li>
+            <li>Удерживайте кнопку, пока не закончите всю мысль — перевод начнётся только после отпускания кнопки.</li>
+          </ol>
+        `;
+      }
+
+      syncLanguageUI();
+      updateGroupRosterUI();
+      if (role === "host" && currentRoomId) {
+        updateHostQrCode(currentRoomId);
+        syncConfigToGuest();
+      }
+      savePersistentSession();
+    }
+
+    document.getElementById("modeTwoPhonesBtn").addEventListener("click", () => setTranslationMode("two"));
+    document.getElementById("modeOnePhoneBtn").addEventListener("click", () => setTranslationMode("one"));
+    document.getElementById("modeGroupBtn").addEventListener("click", () => setTranslationMode("group"));
+
+    // ================= РЕЖИМ ГРОМКОЙ СВЯЗИ И БЫСТРОЙ ОЗВУЧКИ =================
+    document.getElementById("speakerModeBtn").addEventListener("click", () => {
+      speakerMode = !speakerMode;
+      const btn = document.getElementById("speakerModeBtn");
+      const hint = document.getElementById("speakerModeHint");
+      if (speakerMode) {
+        btn.className = "w-full py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20";
+        btn.textContent = "🔊 Громкая связь: ВКЛ";
+        hint.classList.remove("hidden");
+      } else {
+        btn.className = "w-full py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500";
+        btn.textContent = "🔊 Громкая связь: ВЫКЛ";
+        hint.classList.add("hidden");
+      }
+    });
+
+    function syncFastTtsUI() {
+      const btn = document.getElementById("fastTtsBtn");
+      if (!btn) return;
+      if (fastBrowserTtsMode) {
+        btn.className = "w-full py-2.5 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-sky-400 text-slate-950 border-sky-300 shadow-md shadow-sky-400/20";
+        btn.textContent = "⚡ Мгновенная озвучка: ВКЛ";
+      } else {
+        btn.className = "w-full py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer bg-slate-900/90 text-slate-300 border-slate-700 hover:border-slate-500";
+        btn.textContent = "⚡ Мгновенная озвучка: ВЫКЛ";
+      }
+    }
+    syncFastTtsUI();
+
+    document.getElementById("fastTtsBtn").addEventListener("click", () => {
+      fastBrowserTtsMode = !fastBrowserTtsMode;
+      try { localStorage.setItem(FAST_TTS_STORAGE_KEY, fastBrowserTtsMode ? "1" : "0"); } catch (e) {}
+      syncFastTtsUI();
+      syncConfigToGuest();
+    });
+
+    // ================= ИНИЦИАЛИЗАЦИЯ API-КЛЮЧА И СТАРТОВОГО ЭКРАНА =================
+    async function bootstrapApp() {
+      if (role === "guest") {
+        setupScreen.classList.add("hidden");
+        roomScreen.classList.remove("hidden");
+        roomScreen.classList.add("flex");
+        guestEntryOverlay.classList.remove("hidden");
+        activeRoomBody.classList.add("hidden");
+        document.getElementById("modePanel").classList.add("hidden");
+        document.getElementById("qrBox").classList.add("hidden");
+        document.getElementById("finishRecBtn").textContent = "⏹ Выйти";
+
+        if (groupMode) {
+          document.getElementById("guestOverlayTitle").textContent = "Подключиться к группе / квесту";
+          document.getElementById("guestEntryLangBox").classList.remove("hidden");
+          document.getElementById("guestGroupTopBar").classList.remove("hidden");
+          transcriptBox.classList.remove("h-72");
+          transcriptBox.classList.add("h-80", "text-base");
+        } else {
+          document.getElementById("guestEntryLangBox").classList.add("hidden");
+        }
+
+        syncLanguageUI();
+        const savedGuestLog = loadGuestTranscript();
+        if (savedGuestLog.length > 0) renderSavedTranscript(savedGuestLog);
+        initGuestPeer(guestRoomParam);
+        return;
+      }
+
+      if (EMBEDDED_API_KEY && EMBEDDED_API_KEY.startsWith("AIza")) {
+        activeApiKey = EMBEDDED_API_KEY.trim();
+        apiKeyFieldWrapper.classList.add("hidden");
+      } else {
+        const hash = window.location.hash || "";
+        if (hash.startsWith("#v=")) {
+          const vaultId = decodeURIComponent(hash.slice(3)).trim();
+          apiKeyFieldWrapper.classList.add("hidden");
+          isKeyLoading = true;
+          startHostBtn.disabled = true;
+          startHostBtn.textContent = "⏳ Загрузка защищённого доступа...";
+          try {
+            const res = await fetch("https://bytebin.lucko.me/" + encodeURIComponent(vaultId));
+            if (res.ok) {
+              const data = await res.json();
+              const unlocked = decodeKeyToken(data.t || "");
+              if (unlocked.startsWith("AIza")) {
+                activeApiKey = unlocked;
+                try { localStorage.setItem(API_KEY_STORAGE_KEY, unlocked); } catch (e) {}
+              }
+            }
+          } catch (err) {}
+          isKeyLoading = false;
+          startHostBtn.disabled = false;
+          syncSetupFormatUI();
+        } else if (hash.startsWith("#t=")) {
+          const unlocked = decodeKeyToken(decodeURIComponent(hash.slice(3)).trim());
+          if (unlocked.startsWith("AIza")) {
+            activeApiKey = unlocked;
+            try { localStorage.setItem(API_KEY_STORAGE_KEY, unlocked); } catch (e) {}
+            apiKeyFieldWrapper.classList.add("hidden");
+          }
+        } else if (hash.startsWith("#key=")) {
+          const extracted = decodeURIComponent(hash.slice(5)).trim();
+          if (extracted.startsWith("AIza")) {
+            activeApiKey = extracted;
+            try { localStorage.setItem(API_KEY_STORAGE_KEY, extracted); } catch (e) {}
+            apiKeyFieldWrapper.classList.add("hidden");
+          }
+        }
+
+        if (!activeApiKey) {
+          try {
+            const saved = localStorage.getItem(API_KEY_STORAGE_KEY);
+            if (saved && saved.startsWith("AIza")) {
+              activeApiKey = saved;
+              apiKeyInput.value = saved;
+              if (!forceAdminParam) {
+                apiKeyFieldWrapper.classList.add("hidden");
+              } else {
+                document.getElementById("hideAdminPanelBtn").classList.remove("hidden");
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      const savedSession = loadPersistentSession();
+      const targetRoomId = hostRoomParam || (savedSession ? savedSession.roomId : "");
+
+      if (targetRoomId && activeApiKey) {
+        if (savedSession && savedSession.glossary) {
+          document.getElementById("glossaryInput").value = savedSession.glossary;
+        }
+        if (savedSession && savedSession.lang1 && LANGUAGES[savedSession.lang1]) {
+          lang1 = savedSession.lang1;
+        }
+        if (savedSession && savedSession.lang2 && LANGUAGES[savedSession.lang2]) {
+          lang2 = savedSession.lang2;
+        }
+        if (savedSession && typeof savedSession.groupMode === "boolean") {
+          groupMode = savedSession.groupMode;
+        }
+        syncLanguageUI();
+        if (savedSession && savedSession.recSeconds) {
+          recSeconds = savedSession.recSeconds;
+          document.getElementById("recTimer").textContent = formatTimeMMSS(recSeconds);
+        }
+        if (savedSession && savedSession.transcriptLog) {
+          renderSavedTranscript(savedSession.transcriptLog);
+        }
+        if (savedSession && savedSession.groupMode) {
+          setTranslationMode("group");
+        } else if (savedSession && savedSession.singlePhoneMode) {
+          setTranslationMode("one");
+        } else {
+          setTranslationMode("two");
+        }
+        enterHostRoom(targetRoomId, activeApiKey, true);
+      } else if (window.location.hash) {
+        try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+      }
+    }
+
+    bootstrapApp();
+
+    async function initGuestOutputOnlyAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
+      const silentBuf = audioCtx.createBuffer(1, 240, 24000);
+      const silentSrc = audioCtx.createBufferSource();
+      silentSrc.buffer = silentBuf;
+      silentSrc.connect(audioCtx.destination);
+      silentSrc.start();
+      requestScreenWakeLock();
+    }
+
+    function enterGuestActiveRoom(hasMic) {
+      guestMicAvailable = hasMic;
+      guestAudioUnlocked = true;
+      guestEntryOverlay.classList.add("hidden");
+      activeRoomBody.classList.remove("hidden");
+
+      if (!hasMic) {
+        document.getElementById("pttContainer").classList.add("hidden");
+        document.getElementById("guestMicRetryWrap").classList.remove("hidden");
+      } else {
+        document.getElementById("pttContainer").classList.remove("hidden");
+        document.getElementById("guestMicRetryWrap").classList.add("hidden");
+      }
+
+      if (conn && conn.open) {
+        conn.send({ type: "GUEST_HELLO", lang: lang2, name: myGuestName });
+      }
+      playNextGuestWav();
+    }
+
+    document.getElementById("joinMeetingGuestBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("joinMeetingGuestBtn");
+      const errBox = document.getElementById("guestMicErrorBox");
+      const nameInput = document.getElementById("guestNameInput");
+      myGuestName = nameInput ? nameInput.value.trim() : "";
+
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.textContent = "⏳ Подключаем...";
+
+      try {
+        await initAudioEngine(true);
+        const silentBuf = audioCtx.createBuffer(1, 240, 24000);
+        const silentSrc = audioCtx.createBufferSource();
+        silentSrc.buffer = silentBuf;
+        silentSrc.connect(audioCtx.destination);
+        silentSrc.start();
+        enterGuestActiveRoom(true);
+      } catch (e) {
+        try {
+          await initGuestOutputOnlyAudio();
+          enterGuestActiveRoom(false);
+        } catch (e2) {
+          btn.disabled = false;
+          btn.textContent = `🔊 Подключиться (${getL2().ui.joinBtn})`;
+          errBox.innerHTML = `⚠️ Браузер не дал доступ к аудио (${e && e.message ? e.message : "Permission denied"}). Откройте ссылку в <b>Chrome</b> или <b>Safari</b> и нажмите кнопку ещё раз.`;
+          errBox.classList.remove("hidden");
+        }
+      }
+    });
+
+    document.getElementById("guestEnableMicRetryBtn").addEventListener("click", async () => {
+      try {
+        await initAudioEngine(true);
+        enterGuestActiveRoom(true);
+      } catch (e) {
+        alert("Разрешите доступ к микрофону в настройках браузера (значок замка слева от адреса сайта).");
+      }
+    });
+
+    // ================= ГЕНЕРАЦИЯ СКРЫТОЙ ССЫЛКИ ДЛЯ ЗАКАЗЧИКА =================
+    document.getElementById("copyClientMagicLinkBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("copyClientMagicLinkBtn");
+      const preview = document.getElementById("magicLinkPreview");
+      const val = (apiKeyInput.value || activeApiKey || "").trim();
+
+      if (!val.startsWith("AIza")) {
+        showSetupError("Сначала вставьте ваш ключ AIzaSy... в поле выше, затем нажмите кнопку создания ссылки.");
+        return;
+      }
+
+      setupErrorBox.classList.add("hidden");
+      activeApiKey = val;
+      try { localStorage.setItem(API_KEY_STORAGE_KEY, val); } catch (e) {}
+
+      const scrambledToken = encodeKeyToken(val);
+      btn.disabled = true;
+      btn.textContent = "⏳ Шифруем ключ и создаём короткую ссылку...";
+
+      let finalUrl = "";
+      try {
+        const res = await fetch("https://bytebin.lucko.me/post", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ t: scrambledToken })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.key) {
+            finalUrl = window.location.origin + window.location.pathname + "#v=" + json.key;
+          }
+        }
+      } catch (e) {}
+
+      if (!finalUrl) {
+        finalUrl = window.location.origin + window.location.pathname + "#t=" + scrambledToken;
+      }
+
+      btn.disabled = false;
+      preview.textContent = "Скрытая ссылка для заказчика: " + finalUrl;
+      preview.classList.remove("hidden");
+
+      try {
+        await navigator.clipboard.writeText(finalUrl);
+        btn.textContent = "✅ Скрытая ссылка скопирована! (ключа в ней нет)";
+        setTimeout(() => {
+          btn.textContent = "🔒 Создать и скопировать скрытую ссылку для заказчика";
+        }, 3500);
+      } catch (e) {
+        btn.textContent = "🔒 Создать и скопировать скрытую ссылку для заказчика";
+        prompt("Скопируйте эту скрытую ссылку для заказчика:", finalUrl);
+      }
+    });
+
+    function showSetupError(text) {
+      setupErrorBox.textContent = text;
+      setupErrorBox.classList.remove("hidden");
+    }
+
+    // ================= ПОСТОЯННЫЙ АУДИОДВИЖОК =================
+    async function initAudioEngine(fromUserGesture) {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+        try {
+          mixerDest = audioCtx.createMediaStreamDestination();
+          startMasterRecording();
+        } catch (recErr) {
+          console.warn("Recorder fallback:", recErr);
+        }
+      }
+      if (audioCtx.state === "suspended") {
+        if (fromUserGesture) {
+          await audioCtx.resume();
+        } else {
+          resumeAudioBanner.classList.remove("hidden");
+        }
+      }
+      if (audioCtx.state === "running") {
+        resumeAudioBanner.classList.add("hidden");
+      }
+
+      const trackEnded = micStream && micStream.getAudioTracks().some((t) => t.readyState !== "live");
+      if (!micStream || trackEnded) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Браузер заблокировал микрофон. Откройте сайт по HTTPS в Chrome или Safari.");
+        }
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false
+          }
+        });
+        setupPersistentMicPipeline();
+      }
+      requestScreenWakeLock();
+    }
+
+    function setMicRecording(on) {
+      if (!audioCtx || !micRecGain) return;
+      try {
+        const g = micRecGain.gain;
+        const now = audioCtx.currentTime;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value, now);
+        g.linearRampToValueAtTime(on ? 1 : 0, now + 0.02);
+      } catch (e) {}
+    }
+
+    function trimTailBurst(pcm, releaseIdx) {
+      if (!pcm || releaseIdx < 0) return pcm;
+      const FRAME = 160;
+      const NEED = 6;
+      const from = Math.max(0, releaseIdx - 1600);
+      let run = 0;
+      let miss = 0;
+      let runStart = -1;
+      for (let s = from; s + FRAME <= pcm.length; s += FRAME) {
+        let peak = 0, e = 0, d = 0;
+        for (let i = s; i < s + FRAME; i++) {
+          const v = pcm[i];
+          const av = Math.abs(v);
+          if (av > peak) peak = av;
+          e += v * v;
+          if (i > s) { const df = v - pcm[i - 1]; d += df * df; }
+        }
+        if (peak >= 22000 && e > 0 && d / e > 0.3) {
+          if (run === 0) runStart = s;
+          run++;
+          miss = 0;
+          if (run >= NEED) return pcm.slice(0, Math.max(0, runStart - FRAME));
+        } else if (run > 0) {
+          miss++;
+          if (miss >= 3) { run = 0; miss = 0; }
+        }
+      }
+      if (run >= 4) return pcm.slice(0, Math.max(0, runStart - FRAME));
+      return pcm;
+    }
+
+    function trimTtsSilence(int16) {
+      if (!int16 || int16.length < 480) return int16;
+      const THRESH = 80;
+      const MARGIN = 720;
+      let start = 0;
+      while (start < int16.length && Math.abs(int16[start]) < THRESH) start++;
+      let end = int16.length - 1;
+      while (end > start && Math.abs(int16[end]) < THRESH) end--;
+      if (end <= start) return int16;
+      start = Math.max(0, start - MARGIN);
+      end = Math.min(int16.length - 1, end + MARGIN);
+      return int16.slice(start, end + 1);
+    }
+
+    function fadeEdges(int16) {
+      const trimmed = trimTtsSilence(int16);
+      const out = new Int16Array(trimmed);
+      const n = Math.min(200, Math.floor(out.length / 4));
+      for (let i = 0; i < n; i++) {
+        const k = i / n;
+        out[i] = Math.round(out[i] * k);
+        out[out.length - 1 - i] = Math.round(out[out.length - 1 - i] * k);
+      }
+      return out;
+    }
+
+    function setupPersistentMicPipeline() {
+      if (!audioCtx || !micStream) return;
+      try {
+        if (scriptNode) scriptNode.disconnect();
+        if (muteGainNode) muteGainNode.disconnect();
+        if (micSourceNode) micSourceNode.disconnect();
+        if (micRecGain) micRecGain.disconnect();
+      } catch (e) {}
+
+      micSourceNode = audioCtx.createMediaStreamSource(micStream);
+      micRecGain = null;
+      if (role === "host" && mixerDest) {
+        micRecGain = audioCtx.createGain();
+        micRecGain.gain.value = isRecordingPTT ? 1 : 0;
+        micSourceNode.connect(micRecGain);
+        micRecGain.connect(mixerDest);
+      }
+
+      scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
+      muteGainNode = audioCtx.createGain();
+      muteGainNode.gain.value = 0;
+
+      scriptNode.onaudioprocess = (e) => {
+        if (!isRecordingPTT) return;
+        const inputFloat = e.inputBuffer.getChannelData(0);
+
+        let sum = 0;
+        for (let i = 0; i < inputFloat.length; i += 4) sum += inputFloat[i] * inputFloat[i];
+        const rms = Math.sqrt(sum / (inputFloat.length / 4));
+        const pct = Math.min(100, Math.round(rms * 550));
+        micLevelBar.style.width = pct + "%";
+
+        const pcm16k = downsampleTo16k(inputFloat, audioCtx.sampleRate);
+        pttBufferedChunks.push(pcm16k);
+      };
+
+      micSourceNode.connect(scriptNode);
+      scriptNode.connect(muteGainNode);
+      muteGainNode.connect(audioCtx.destination);
+    }
+
+    resumeAudioBanner.addEventListener("click", async () => {
+      try {
+        await initAudioEngine(true);
+        resumeAudioBanner.classList.add("hidden");
+      } catch (e) {
+        alert("Нажмите на значок замка слева от адреса сайта и разрешите доступ к микрофону.");
+      }
+    });
+
+    function startMasterRecording() {
+      if (role !== "host" || !mixerDest || typeof MediaRecorder === "undefined") return;
+      if (mediaRecorder && mediaRecorder.state === "recording") return;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : (MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "");
+      mediaRecorder = mimeType
+        ? new MediaRecorder(mixerDest.stream, { mimeType })
+        : new MediaRecorder(mixerDest.stream);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        showDownloadPanel(url, blob);
+        if (hasAnyOpenGuest()) {
+          blob.arrayBuffer().then((buf) => {
+            broadcastToAllGuests({
+              type: "RECORDING_FILE",
+              buffer: buf,
+              mime: blob.type,
+              transcript: transcriptLog
+            });
+          });
+        }
+      };
+      mediaRecorder.start(1000);
+
+      if (!recInterval) {
+        document.getElementById("recTimer").textContent = formatTimeMMSS(recSeconds);
+        recInterval = setInterval(() => {
+          if (meetingStopped) return;
+          recSeconds++;
+          const formatted = formatTimeMMSS(recSeconds);
+          document.getElementById("recTimer").textContent = formatted;
+          broadcastToAllGuests({ type: "TIMER_SYNC", seconds: recSeconds, formatted: formatted });
+          if (recSeconds % 5 === 0) savePersistentSession();
+        }, 1000);
+      }
+    }
+
+    function showDownloadPanel(url, blob) {
+      clearInterval(recInterval);
+      recInterval = null;
+      document.getElementById("recDot").classList.remove("animate-ping");
+      const box = document.getElementById("downloadReadyBox");
+      const link = document.getElementById("audioDownloadLink");
+      const ext = (blob.type && blob.type.includes("mp4")) ? "m4a" : "webm";
+      link.href = url;
+      link.download = `meeting-record-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      box.classList.remove("hidden");
+      if (role === "host") {
+        document.getElementById("startNewRoomBtn").classList.remove("hidden");
+      }
+    }
+
+    function updateHostQrCode(roomId) {
+      guestShareUrl = groupMode
+        ? `${window.location.origin}${window.location.pathname}?room=${roomId}&mode=group&l1=${lang1}`
+        : `${window.location.origin}${window.location.pathname}?room=${roomId}&l1=${lang1}&l2=${lang2}`;
+      const qrContainer = document.getElementById("qrcode");
+      if (!qrContainer) return;
+      qrContainer.innerHTML = "";
+      if (typeof QRCode !== "undefined") {
+        new QRCode(qrContainer, { text: guestShareUrl, width: 132, height: 132 });
+      } else {
+        qrContainer.textContent = "Нажмите кнопку ссылки ниже";
+      }
+    }
+
+    // ================= ВХОД И ВОССТАНОВЛЕНИЕ КАБИНЕТА ОРГАНИЗАТОРА =================
+    async function enterHostRoom(roomId, apiKey, isRestoredSession) {
+      currentRoomId = roomId;
+      activeApiKey = apiKey;
+      meetingStopped = false;
+
+      hostResumeUrl = `${window.location.origin}${window.location.pathname}?host=${roomId}`;
+      try {
+        history.replaceState(null, "", `?host=${roomId}`);
+      } catch (e) {}
+
+      setupScreen.classList.add("hidden");
+      roomScreen.classList.remove("hidden");
+      roomScreen.classList.add("flex");
+      activeRoomBody.classList.remove("hidden");
+      document.getElementById("roomCodeBadge").textContent = roomId;
+
+      if (!isRestoredSession) {
+        setTranslationMode(groupMode ? "group" : "two");
+      } else {
+        updateHostQrCode(roomId);
+        updateGroupRosterUI();
+      }
+
+      try {
+        await initAudioEngine(!isRestoredSession);
+      } catch (err) {
+        resumeAudioBanner.classList.remove("hidden");
+      }
+
+      if (!isRestoredSession && activeApiKey && !fastBrowserTtsMode) {
+        const warmPhrases = (getL2().warmPhrases || []).slice(0, 5);
+        for (const p of warmPhrases) { synthesizeGeminiTts(p).catch(() => {}); }
+      }
+
+      initHostPeer(roomId);
+      connBadge.textContent = groupMode ? "🟢 Квест-комната готова" : "🟢 Переводчик готов";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+    }
+
+    startHostBtn.addEventListener("click", async () => {
+      if (isKeyLoading) return;
+      setupErrorBox.classList.add("hidden");
+      const apiKey = (activeApiKey || apiKeyInput.value || "").trim();
+
+      if (!apiKey) {
+        showSetupError("Вставьте ваш API-ключ из Google AI Studio (начинается на AIzaSy...) в поле выше.");
+        return;
+      }
+      if (!apiKey.startsWith("AIza")) {
+        showSetupError("Неверный формат ключа. Нужен ключ из Google AI Studio (начинается на AIzaSy...).");
+        return;
+      }
+
+      try { localStorage.setItem(API_KEY_STORAGE_KEY, apiKey); } catch (e) {}
+      apiKeyFieldWrapper.classList.add("hidden");
+      const newRoomId = (groupMode ? "quest-" : "phuket-") + Math.random().toString(36).substring(2, 8);
+      await enterHostRoom(newRoomId, apiKey, false);
+    });
+
+    document.getElementById("copyGuestLinkBtn").addEventListener("click", async () => {
+      if (!guestShareUrl) return;
+      try {
+        await navigator.clipboard.writeText(guestShareUrl);
+        document.getElementById("copyGuestLinkBtn").textContent = "✅ Ссылка скопирована";
+        setTimeout(() => {
+          document.getElementById("copyGuestLinkBtn").textContent = "📋 Скопировать ссылку для гостей";
+        }, 2500);
+      } catch (e) {
+        prompt("Скопируйте ссылку для гостей:", guestShareUrl);
+      }
+    });
+
+    document.getElementById("startNewRoomBtn").addEventListener("click", () => {
+      clearPersistentSession();
+      window.location.href = window.location.origin + window.location.pathname;
+    });
+
+    // ================= МУЛЬТИ-P2P СВЯЗЬ (1 ОРГАНИЗАТОР + ДО 15+ ГОСТЕЙ BYOD) =================
+    function initHostPeer(roomId) {
+      if (typeof Peer === "undefined" || meetingStopped) return;
+      if (peer && !peer.destroyed) {
+        try { peer.destroy(); } catch (e) {}
+      }
+
+      peer = new Peer(roomId);
+
+      peer.on("open", () => {
+        updateGroupRosterUI();
+      });
+
+      peer.on("connection", (connection) => {
+        const peerId = connection.peer;
+        if (!guestNumByPeer.has(peerId)) guestNumByPeer.set(peerId, ++guestJoinCounter);
+        const guestNum = guestNumByPeer.get(peerId);
+        const guestEntry = {
+          conn: connection,
+          lang: lang2,
+          guestNum: guestNum,
+          guestName: "",
+          chunks: []
+        };
+        guestConnections.set(peerId, guestEntry);
+        conn = connection;
+
+        connection.on("open", () => {
+          updateGroupRosterUI();
+          connection.send({
+            type: "GUEST_WELCOME",
+            guestNum: guestNum
+          });
+          connection.send({
+            type: "TIMER_SYNC",
+            seconds: recSeconds,
+            formatted: formatTimeMMSS(recSeconds)
+          });
+          syncConfigToGuest(peerId);
+
+          if (!groupMode && transcriptLog.length > 0) {
+            setTimeout(() => {
+              if (connection.open) {
+                connection.send({ type: "FULL_HISTORY_SYNC", transcript: transcriptLog });
+              }
+            }, 400);
+          }
+        });
+
+        connection.on("data", (data) => {
+          const entry = guestConnections.get(peerId) || guestEntry;
+          conn = connection;
+
+          if (data.type === "GUEST_HELLO" || data.type === "GUEST_SET_LANG") {
+            if (data.lang && LANGUAGES[data.lang]) {
+              entry.lang = data.lang;
+              if (!groupMode) {
+                lang2 = data.lang;
+                syncLanguageUI();
+              }
+            }
+            if (typeof data.name === "string") {
+              entry.guestName = data.name.trim().slice(0, 24);
+            }
+            updateGroupRosterUI();
+          } else if (data.type === "GUEST_AUDIO_CHUNK") {
+            const pcm16 = new Int16Array(data.pcm);
+            entry.chunks.push(pcm16);
+          } else if (data.type === "GUEST_AUDIO_COMMIT") {
+            // Забираем буфер этого конкретного туриста в локальную переменную — параллельные вопросы не перезаписывают друг друга
+            const rawGuestPcm = mergeInt16Chunks(entry.chunks);
+            entry.chunks = [];
+            const fullGuestPcm = trimTailBurst(rawGuestPcm, Math.max(0, rawGuestPcm.length - 14400));
+            const senderLang = (data.lang && LANGUAGES[data.lang]) ? data.lang : entry.lang;
+            const senderName = (typeof data.name === "string" && data.name.trim()) ? data.name.trim() : entry.guestName;
+
+            if (fullGuestPcm.length > 0) {
+              playIncomingGuestToMixer(fullGuestPcm);
+              processCompleteTurn(fullGuestPcm, "guest", {
+                peerId: peerId,
+                guestLang: senderLang,
+                guestNum: entry.guestNum,
+                guestName: senderName
+              });
+            } else {
+              const gLangObj = LANGUAGES[senderLang] || getL2();
+              sendToGuest(peerId, {
+                type: "STATUS_SYNC",
+                mode: "warn",
+                text: `⚠️ ${gLangObj.ui.unrecognized}`,
+                autoHideMs: 4500
+              });
+            }
+          } else if (data.type === "GUEST_RAW_AUDIO_FOR_ARCHIVE") {
+            const archivePcm = new Int16Array(data.pcm);
+            if (archivePcm.length > 0) playIncomingGuestToMixer(archivePcm);
+          } else if (data.type === "GUEST_DELIVERED_TURN") {
+            // Гость сам перевёл свой вопрос и прислал готовую карточку чата + звук в очередь гида!
+            const gCode = (data.lang && LANGUAGES[data.lang]) ? data.lang : entry.lang;
+            const gNum = data.guestNum || entry.guestNum;
+            const gName = data.guestName || entry.guestName;
+            const senderLabel = formatGuestDisplayName(gNum, gName, gCode) + ` (${gCode.toUpperCase()})`;
+
+            appendChatBubble({
+              side: "left",
+              sender: senderLabel,
+              original: data.original || "",
+              translation: data.translation || "",
+              isSelf: false
+            }, false);
+
+            if (data.pcm) {
+              const pcm24 = new Int16Array(data.pcm);
+              if (pcm24.length > 0) playPcm24k(pcm24, true);
+            } else if (data.translation) {
+              speakBrowserTts(data.translation, data.bcp47 || getL1().bcp47);
+            }
+          } else if (data.type === "AI_PCM_FOR_HOST") {
+            const pcm24 = new Int16Array(data.pcm);
+            if (pcm24.length > 0) playPcm24k(pcm24, true);
+          } else if (data.type === "AI_BROWSER_TTS_FOR_HOST") {
+            speakBrowserTts(data.text, data.lang || getL1().bcp47);
+          } else if (data.type === "CHAT_BUBBLE_SYNC") {
+            appendChatBubble({
+              side: "left",
+              sender: data.sender,
+              original: data.original,
+              translation: data.translation,
+              isSelf: false
+            }, false);
+          } else if (data.type === "STATUS_SYNC") {
+            setBottomStatus(data.mode, data.text, false, data.autoHideMs || 0);
+          } else if (data.type === "REQUEST_FINISH") {
+            finishMeetingAndShare();
+          }
+        });
+
+        connection.on("close", () => {
+          guestConnections.delete(peerId);
+          updateGroupRosterUI();
+          if (!meetingStopped && !groupMode && !hasAnyOpenGuest()) {
+            document.getElementById("partnerStatus").textContent = "🟡 Связь со вторым телефоном прервалась, ждём возврата...";
+            document.getElementById("partnerStatus").className = "text-xs text-amber-400 mt-2 font-medium";
+          }
+        });
+      });
+
+      peer.on("disconnected", () => {
+        if (!meetingStopped && peer && !peer.destroyed) {
+          setTimeout(() => {
+            try { peer.reconnect(); } catch (e) {}
+          }, 1500);
+        }
+      });
+
+      peer.on("error", (err) => {
+        if (meetingStopped) return;
+        if (err.type === "unavailable-id" || err.type === "network" || err.type === "server-error") {
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = setTimeout(() => initHostPeer(roomId), 2000);
+        }
+      });
+    }
+
+    function initGuestPeer(hostId) {
+      if (typeof Peer === "undefined" || meetingStopped) return;
+      if (peer && !peer.destroyed) {
+        try { peer.destroy(); } catch (e) {}
+      }
+
+      connBadge.textContent = "🟡 Подключение...";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+
+      peer = new Peer();
+      peer.on("open", () => {
+        connectGuestToHost(hostId);
+      });
+
+      peer.on("disconnected", () => {
+        if (!meetingStopped && peer && !peer.destroyed) {
+          setTimeout(() => {
+            try { peer.reconnect(); } catch (e) {}
+          }, 1500);
+        }
+      });
+
+      peer.on("error", () => {
+        if (!meetingStopped) {
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = setTimeout(() => initGuestPeer(hostId), 2500);
+        }
+      });
+    }
+
+    function connectGuestToHost(hostId) {
+      if (meetingStopped || !peer || peer.destroyed) return;
+      conn = peer.connect(hostId, { reliable: true });
+
+      conn.on("open", () => {
+        connBadge.textContent = "🟢 Подключено";
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+        conn.send({ type: "GUEST_HELLO", lang: lang2, name: myGuestName });
+      });
+
+      conn.on("data", async (data) => {
+        if (data.type === "GUEST_WELCOME") {
+          myAssignedGuestNum = data.guestNum || 1;
+          const badge = document.getElementById("guestRoleBadge");
+          if (badge) {
+            badge.textContent = myGuestName
+              ? `Участник #${myAssignedGuestNum} • ${myGuestName}`
+              : `Участник #${myAssignedGuestNum}`;
+          }
+        } else if (data.type === "TIMER_SYNC") {
+          recSeconds = data.seconds || 0;
+          document.getElementById("recTimer").textContent = data.formatted || formatTimeMMSS(recSeconds);
+        } else if (data.type === "SESSION_CONFIG_SYNC") {
+          const hadKey = Boolean(activeApiKey);
+          if (data.apiKey) activeApiKey = data.apiKey;
+          if (data.l1 && LANGUAGES[data.l1]) lang1 = data.l1;
+
+          if (typeof data.groupMode === "boolean") {
+            groupMode = data.groupMode;
+            if (groupMode) {
+              document.getElementById("guestOverlayTitle").textContent = "Подключиться к группе / квесту";
+              document.getElementById("guestEntryLangBox").classList.remove("hidden");
+              document.getElementById("guestGroupTopBar").classList.remove("hidden");
+              if (!guestAudioUnlocked && (!urlL2 || !LANGUAGES[urlL2])) {
+                lang2 = detectBrowserLangCode();
+              }
+            } else if (data.l2 && LANGUAGES[data.l2]) {
+              lang2 = data.l2;
+            }
+          } else if (data.l2 && LANGUAGES[data.l2]) {
+            lang2 = data.l2;
+          }
+
+          if (typeof data.glossary === "string") {
+            document.getElementById("glossaryInput").value = data.glossary;
+          }
+          if (data.style) styleSelectEl.value = data.style;
+          if (typeof data.fastTts === "boolean") fastBrowserTtsMode = data.fastTts;
+          syncLanguageUI();
+
+          if (!hadKey && activeApiKey && !fastBrowserTtsMode) {
+            const warmPhrases = (getL1().warmPhrases || []).slice(0, 3);
+            for (const p of warmPhrases) { synthesizeGeminiTts(p).catch(() => {}); }
+          }
+        } else if (data.type === "LANG_SYNC") {
+          if (data.l1 && LANGUAGES[data.l1]) lang1 = data.l1;
+          if (!groupMode && data.l2 && LANGUAGES[data.l2]) lang2 = data.l2;
+          syncLanguageUI();
+        } else if (data.type === "STATUS_SYNC") {
+          setBottomStatus(data.mode, data.text, false, data.autoHideMs || 0);
+        } else if (data.type === "AI_WAV_FOR_GUEST") {
+          if (guestAudioMuted) return;
+          const wavBlob = new Blob([data.wav], { type: "audio/wav" });
+          const wavUrl = URL.createObjectURL(wavBlob);
+          guestWavQueue.push(wavUrl);
+          if (guestAudioUnlocked) {
+            playNextGuestWav();
+          }
+        } else if (data.type === "AI_BROWSER_TTS_FOR_GUEST") {
+          if (guestAudioMuted) return;
+          speakBrowserTts(data.text, data.lang || getL2().bcp47);
+        } else if (data.type === "CHAT_BUBBLE_SYNC") {
+          appendChatBubble({
+            side: "left",
+            sender: data.sender,
+            original: data.original,
+            translation: data.translation,
+            isSelf: false
+          }, false);
+        } else if (data.type === "FULL_HISTORY_SYNC" && Array.isArray(data.transcript)) {
+          renderSavedTranscript(data.transcript);
+          saveGuestTranscript();
+        } else if (data.type === "RECORDING_FILE") {
+          meetingStopped = true;
+          releaseMicrophone();
+          const blob = new Blob([data.buffer], { type: data.mime || "audio/webm" });
+          const url = URL.createObjectURL(blob);
+          if (data.transcript) renderSavedTranscript(data.transcript);
+          showDownloadPanel(url, blob);
+          connBadge.textContent = "🏁 Сессия завершена";
+        }
+      });
+
+      conn.on("close", () => {
+        if (!meetingStopped) {
+          connBadge.textContent = "🟡 Переподключение...";
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300";
+          clearTimeout(peerReconnectTimer);
+          peerReconnectTimer = setTimeout(() => connectGuestToHost(hostId), 2000);
+        }
+      });
+    }
+
+    function playNextGuestWav() {
+      if (guestAudioMuted || isPlayingGuestWav || guestWavQueue.length === 0) return;
+      isPlayingGuestWav = true;
+      const wavUrl = guestWavQueue.shift();
+      const audioEl = new Audio(wavUrl);
+      audioEl.playsInline = true;
+      audioEl.onended = () => {
+        URL.revokeObjectURL(wavUrl);
+        isPlayingGuestWav = false;
+        playNextGuestWav();
+      };
+      audioEl.onerror = () => {
+        URL.revokeObjectURL(wavUrl);
+        isPlayingGuestWav = false;
+        playNextGuestWav();
+      };
+      audioEl.play().catch(() => {
+        isPlayingGuestWav = false;
+      });
+    }
+
+    // ================= АВТОВОССТАНОВЛЕНИЕ ПРИ ЗВОНКАХ И СМЕНЕ ВКЛАДКИ =================
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && !meetingStopped) {
+        if (audioCtx && audioCtx.state === "suspended") {
+          try {
+            await audioCtx.resume();
+            resumeAudioBanner.classList.add("hidden");
+          } catch (e) {
+            resumeAudioBanner.classList.remove("hidden");
+          }
+        }
+        requestScreenWakeLock();
+
+        if (role === "host" && currentRoomId) {
+          if (!peer || peer.destroyed || peer.disconnected) {
+            initHostPeer(currentRoomId);
+          }
+        } else if (role === "guest" && guestRoomParam) {
+          if (!conn || !conn.open) {
+            initGuestPeer(guestRoomParam);
+          }
+        }
+      }
+    });
+
+    window.addEventListener("online", () => {
+      if (meetingStopped) return;
+      if (role === "host" && currentRoomId) {
+        initHostPeer(currentRoomId);
+      } else if (role === "guest" && guestRoomParam) {
+        initGuestPeer(guestRoomParam);
+      }
+    });
+
+    // ================= ШУМОВОЙ ГЕЙТ И ОБРЕЗКА ТИШИНЫ =================
+    function noiseGatePcm16(pcm16, opts = {}) {
+      if (!pcm16 || pcm16.length === 0) return pcm16;
+      const FRAME = 320;
+      const OPEN_THRESH = opts.openThresh || 0.006;
+      const CLOSE_THRESH = opts.closeThresh || 0.0035;
+      const HANGOVER_FRAMES = 5;
+      const PAD_FRAMES = 2;
+
+      const nFrames = Math.floor(pcm16.length / FRAME);
+      if (nFrames === 0) return pcm16;
+
+      const frameRms = new Float32Array(nFrames);
+      for (let f = 0; f < nFrames; f++) {
+        let s = 0;
+        const off = f * FRAME;
+        for (let i = 0; i < FRAME; i++) { const v = pcm16[off + i] / 32768.0; s += v * v; }
+        frameRms[f] = Math.sqrt(s / FRAME);
+      }
+
+      const sortedRms = Array.from(frameRms).sort((a, b) => a - b);
+      const noiseFloor = sortedRms[Math.floor(nFrames * 0.25)];
+      const openTh = Math.max(OPEN_THRESH, noiseFloor * 2.5);
+      const closeTh = Math.max(CLOSE_THRESH, noiseFloor * 1.6);
+
+      const isSpeech = new Uint8Array(nFrames);
+      let gateOpen = false;
+      let hang = 0;
+      for (let f = 0; f < nFrames; f++) {
+        const r = frameRms[f];
+        if (!gateOpen && r >= openTh) gateOpen = true;
+        if (gateOpen) {
+          if (r >= closeTh) { isSpeech[f] = 1; hang = HANGOVER_FRAMES; }
+          else if (hang > 0) { isSpeech[f] = 1; hang--; }
+          else gateOpen = false;
+        }
+      }
+
+      let first = -1, last = -1;
+      for (let f = 0; f < nFrames; f++) if (isSpeech[f]) { first = f; break; }
+      for (let f = nFrames - 1; f >= 0; f--) if (isSpeech[f]) { last = f; break; }
+      if (first < 0) return new Int16Array(0);
+      first = Math.max(0, first - PAD_FRAMES);
+      last = Math.min(nFrames - 1, last + PAD_FRAMES);
+
+      const out = new Int16Array((last - first + 1) * FRAME);
+      let dst = 0;
+      for (let f = first; f <= last; f++) {
+        const off = f * FRAME;
+        const att = isSpeech[f] ? 1.0 : 0.18;
+        for (let i = 0; i < FRAME; i++) {
+          const v = pcm16[off + i] * att;
+          out[dst++] = Math.max(-32768, Math.min(32767, Math.round(v)));
+        }
+      }
+      return out;
+    }
+
+    // ================= АНАЛИЗ ГРОМКОСТИ И АВТОУСИЛЕНИЕ ТИХОЙ РЕЧИ =================
+    function calculatePcmStats(pcm16) {
+      if (!pcm16 || pcm16.length === 0) return { rms: 0, peak: 0, activeFrames: 0 };
+      let sumSquares = 0;
+      let peak = 0;
+      const FRAME = 320;
+      let activeFrames = 0;
+      let speechFrames = 0;
+
+      for (let i = 0; i < pcm16.length; i++) {
+        const absVal = Math.abs(pcm16[i]);
+        if (absVal > peak) peak = absVal;
+        const norm = pcm16[i] / 32768.0;
+        sumSquares += norm * norm;
+      }
+
+      for (let s = 0; s + FRAME <= pcm16.length; s += FRAME) {
+        let fSum = 0;
+        for (let i = s; i < s + FRAME; i++) {
+          const v = pcm16[i] / 32768.0;
+          fSum += v * v;
+        }
+        const fRms = Math.sqrt(fSum / FRAME);
+        if (fRms > 0.0035) activeFrames++;
+        if (fRms > 0.008) speechFrames++;
+      }
+
+      return {
+        rms: Math.sqrt(sumSquares / pcm16.length),
+        peak: peak / 32768.0,
+        activeFrames,
+        speechFrames
+      };
+    }
+
+    function normalizeAudioPcm16(pcm16) {
+      if (!pcm16 || pcm16.length === 0) return pcm16;
+      if (calculatePcmStats(pcm16).speechFrames < 10) return pcm16;
+      let maxAbs = 0;
+      for (let i = 0; i < pcm16.length; i++) {
+        const a = Math.abs(pcm16[i]);
+        if (a > maxAbs) maxAbs = a;
+      }
+      if (maxAbs === 0) return pcm16;
+      const targetPeak = 26000;
+      const gain = Math.min(3.0, Math.max(1.0, targetPeak / maxAbs));
+      if (gain <= 1.05) return pcm16;
+
+      const out = new Int16Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        const v = Math.round(pcm16[i] * gain);
+        out[i] = Math.max(-32768, Math.min(32767, v));
+      }
+      return out;
+    }
+
+    // ================= КОДИРОВАНИЕ WAV (24000 Hz И 16000 Hz) =================
+    function buildWavArrayBuffer(pcm16, sampleRate) {
+      const dataBytes = pcm16.byteLength;
+      const buffer = new ArrayBuffer(44 + dataBytes);
+      const view = new DataView(buffer);
+
+      function writeStr(offset, str) {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      }
+
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + dataBytes, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, "data");
+      view.setUint32(40, dataBytes, true);
+
+      const outBytes = new Uint8Array(buffer);
+      const pcmBytes = new Uint8Array(pcm16.buffer, pcm16.byteOffset, pcm16.byteLength);
+      outBytes.set(pcmBytes, 44);
+      return buffer;
+    }
+
+    function encodeWavBase64(pcm16, sampleRate) {
+      const buffer = buildWavArrayBuffer(pcm16, sampleRate);
+      const outBytes = new Uint8Array(buffer);
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < outBytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, outBytes.subarray(i, i + chunk));
+      }
+      return btoa(binary);
+    }
+
+    // ================= СТИЛЬ РЕЧИ И АНТИ-ГАЛЛЮЦИНАЦИИ =================
+    const STYLE_STORAGE_KEY = "translator_style";
+    const THAI_STYLE_PROMPTS = {
+      business: "Стиль: деловой. Формальный тайский, обращение คุณ, частицы ครับ или ค่ะ в каждой фразе, без разговорных слов.",
+      professional: "Стиль: профессиональный. Нейтральный и точный тайский, термины без упрощений, частицы ครับ или ค่ะ в конце фразы.",
+      friendly: "Стиль: дружеский. Разговорный тайский, короткие фразы, частицы นะ и ครับ или ค่ะ.",
+      simple: "Стиль: простой. Короткие фразы, самые распространённые слова, без сложных оборотов, частицы ครับ или ค่ะ."
+    };
+
+    function getStylePromptForTarget(targetCode, styleKey) {
+      if (targetCode === "th") {
+        return THAI_STYLE_PROMPTS[styleKey] || THAI_STYLE_PROMPTS.business;
+      }
+      const targetLang = LANGUAGES[targetCode] || LANGUAGES.en;
+      const map = {
+        business: `Стиль: деловой. Официальный, вежливый ${targetLang.nameAcc} язык для переговоров, уважительное обращение на «Вы», без сленга.`,
+        professional: `Стиль: профессиональный. Нейтральный и точный ${targetLang.nameAcc} язык, сохраняй деловую и профильную терминологию без упрощений.`,
+        friendly: `Стиль: дружеский. Естественный разговорный ${targetLang.nameAcc} язык, живые и доброжелательные формулировки.`,
+        simple: `Стиль: простой. Короткие и максимально понятные фразы на ${targetLang.namePrep} языке, без сложных конструкций.`
+      };
+      return map[styleKey] || map.business;
+    }
+
+    const styleSelectEl = document.getElementById("styleSelect");
+    try {
+      const savedStyle = localStorage.getItem(STYLE_STORAGE_KEY);
+      if (savedStyle && THAI_STYLE_PROMPTS[savedStyle]) styleSelectEl.value = savedStyle;
+    } catch (e) {}
+    styleSelectEl.addEventListener("change", () => {
+      try { localStorage.setItem(STYLE_STORAGE_KEY, styleSelectEl.value); } catch (e) {}
+      syncConfigToGuest();
+    });
+
+    const HALLUCINATION_PATTERNS = [
+      /продолжение следует/i,
+      /субтитры сделал/i,
+      /редактор субтитров/i,
+      /спасибо за просмотр/i,
+      /подписывайтесь на канал/i,
+      /dimatorzok/i,
+      /amara\.org/i,
+      /переводчик\s+и\s+корректор/i
+    ];
+
+    function isLikelyHallucination(originalText, durationSec) {
+      if (!originalText) return true;
+      const clean = originalText.trim();
+      if (clean.length === 0) return true;
+
+      for (const pat of HALLUCINATION_PATTERNS) {
+        if (pat.test(clean)) return true;
+      }
+
+      if (durationSec > 0 && durationSec < 1.2 && clean.length > 65) return true;
+      if (durationSec > 0 && (clean.length / Math.max(0.6, durationSec)) > 35) return true;
+
+      return false;
+    }
+
+    // ================= РАСПОЗНАВАНИЕ И ПЕРЕВОД (ДВУСТОРОННИЙ 1-НА-1) =================
+    async function transcribeAndTranslateWav(wavBase64, durationSec = 3.0, overrideL1 = null, overrideL2 = null) {
+      const L1 = overrideL1 ? (LANGUAGES[overrideL1] || getL1()) : getL1();
+      const L2 = overrideL2 ? (LANGUAGES[overrideL2] || getL2()) : getL2();
+      const glossary = document.getElementById("glossaryInput").value.trim();
+      const styleKey = styleSelectEl.value || "business";
+      const styleForL2 = getStylePromptForTarget(L2.code, styleKey);
+      const styleForL1 = getStylePromptForTarget(L1.code, styleKey);
+
+      const promptText = `Ты профессиональный переводчик между двумя языками: ${L1.name} (код "${L1.code}") и ${L2.name} (код "${L2.code}"). Тебе дана аудиозапись одной реплики.
+
+Правила:
+1. Сначала реши, есть ли в записи разборчивая человеческая речь. Тишина, шум, дыхание, эхо, музыка и обрывки звуков не считаются речью.
+2. Если речи нет, верни speech=false и пустые строки в остальных полях.
+3. Если речь есть, запиши в поле original дословно то, что сказано. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО придумывать фразы, имена, компании или добавлять слова, которых нет в записи.
+4. Если звучит речь на языке "${L1.name}": верни source_lang "${L1.code}", target_lang "${L2.code}". Переведи на ${L2.nameAcc}. ${styleForL2} Стиль меняет только форму речи. Не добавляй факты, имена и слова, которых нет в оригинале.
+5. Если звучит речь на языке "${L2.name}": верни source_lang "${L2.code}", target_lang "${L1.code}". Переведи на естественный ${L1.nameAcc}. ${styleForL1}
+6. Если слово неразборчиво, пропусти его. Не угадывай.
+${glossary ? "Подсказка для написания имён и терминов (используй ТОЛЬКО если они реально прозвучали в записи): " + glossary : ""}`;
+
+      let lastErr = "Неизвестная ошибка API";
+      for (const m of TRANSLATION_MODELS) {
+        const genConfig = {
+          temperature: 0.0,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              speech: { type: "BOOLEAN" },
+              source_lang: { type: "STRING" },
+              target_lang: { type: "STRING" },
+              original: { type: "STRING" },
+              translation: { type: "STRING" }
+            },
+            required: ["speech", "source_lang", "target_lang", "original", "translation"]
+          }
+        };
+        if (m.useThinkingZero) {
+          genConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        const r = await geminiPost(m.name, {
+          contents: [{
+            parts: [
+              { inlineData: { mimeType: "audio/wav", data: wavBase64 } },
+              { text: promptText }
+            ]
+          }],
+          generationConfig: genConfig
+        });
+
+        if (!r.ok) {
+          lastErr = r.netErr || ((r.data.error && r.data.error.message) ? r.data.error.message : `HTTP ${r.status}`);
+          continue;
+        }
+
+        const data = r.data;
+        const respParts = data?.candidates?.[0]?.content?.parts || [];
+        const rawText = respParts.filter(p => !p.thought && typeof p.text === "string").map(p => p.text).join("");
+        const cleanedJsonStr = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+        let parsed = null;
+        try { parsed = JSON.parse(cleanedJsonStr); } catch (e) { lastErr = "Ответ не JSON (" + m.name + ")"; continue; }
+        if (parsed && typeof parsed.translation === "string") {
+          if (parsed.speech === false || isLikelyHallucination(parsed.original, durationSec)) {
+            return { source_lang: "", target_lang: "", original: "", translation: "" };
+          }
+          parsed._model = m.name;
+          return parsed;
+        }
+      }
+      throw new Error(lastErr);
+    }
+
+    // ================= МУЛЬТИЯЗЫЧНЫЙ ПЕРЕВОД ДЛЯ ГРУППЫ / КВЕСТА ЗА ОДИН ЗАПРОС =================
+    async function transcribeAndTranslateMultiWav(wavBase64, sourceCode, targetCodes, durationSec = 3.0) {
+      const srcLang = LANGUAGES[sourceCode] || getL1();
+      const uniqueTargets = [...new Set(targetCodes.filter(c => LANGUAGES[c]))];
+      if (uniqueTargets.length === 0) uniqueTargets.push(getL2().code);
+
+      const glossary = document.getElementById("glossaryInput").value.trim();
+      const styleKey = styleSelectEl.value || "business";
+
+      const targetInstructions = uniqueTargets.map(code => {
+        const tObj = LANGUAGES[code];
+        const st = getStylePromptForTarget(code, styleKey);
+        return `- Код "${code}" (${tObj.name}): переведи реплику на ${tObj.nameAcc}. ${st}`;
+      }).join("\n");
+
+      const promptText = `Ты синхронный переводчик для экскурсий, квестов и многоязычных мероприятий.
+Ведущий говорит на языке: ${srcLang.name} (код "${srcLang.code}"). Тебе дана аудиозапись одной реплики.
+
+Правила:
+1. Сначала реши, есть ли в записи разборчивая человеческая речь. Тишина, шум ветра, музыка и обрывки звуков не считаются речью.
+2. Если речи нет, верни speech=false, original="" и пустой массив translations=[].
+3. Если речь есть, запиши в original дословно то, что сказал ведущий на языке ${srcLang.name}. ЗАПРЕЩЕНО выдумывать слова или добавлять отсебятину.
+4. Переведи эту фразу на ВСЕ перечисленные ниже целевые языки в массиве translations (по одному объекту { lang, text } на каждый язык):
+${targetInstructions}
+5. Сохраняй смысл, имена, числа и интонацию ведущего. Не добавляй фактов, которых не было в речи.
+${glossary ? "Контекст / термины / легенда квеста (используй ТОЛЬКО если прозвучали в записи): " + glossary : ""}`;
+
+      let lastErr = "Неизвестная ошибка API";
+      for (const m of TRANSLATION_MODELS) {
+        const genConfig = {
+          temperature: 0.0,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              speech: { type: "BOOLEAN" },
+              original: { type: "STRING" },
+              translations: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    lang: { type: "STRING" },
+                    text: { type: "STRING" }
+                  },
+                  required: ["lang", "text"]
+                }
+              }
+            },
+            required: ["speech", "original", "translations"]
+          }
+        };
+        if (m.useThinkingZero) {
+          genConfig.thinkingConfig = { thinkingBudget: 0 };
+        }
+
+        const r = await geminiPost(m.name, {
+          contents: [{
+            parts: [
+              { inlineData: { mimeType: "audio/wav", data: wavBase64 } },
+              { text: promptText }
+            ]
+          }],
+          generationConfig: genConfig
+        });
+
+        if (!r.ok) {
+          lastErr = r.netErr || ((r.data.error && r.data.error.message) ? r.data.error.message : `HTTP ${r.status}`);
+          continue;
+        }
+
+        const data = r.data;
+        const respParts = data?.candidates?.[0]?.content?.parts || [];
+        const rawText = respParts.filter(p => !p.thought && typeof p.text === "string").map(p => p.text).join("");
+        const cleanedJsonStr = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+        let parsed = null;
+        try { parsed = JSON.parse(cleanedJsonStr); } catch (e) { lastErr = "Ответ не JSON (" + m.name + ")"; continue; }
+
+        if (parsed && Array.isArray(parsed.translations)) {
+          if (parsed.speech === false || isLikelyHallucination(parsed.original, durationSec)) {
+            return { original: "", translationsMap: {} };
+          }
+          const translationsMap = {};
+          for (const item of parsed.translations) {
+            if (item && item.lang && typeof item.text === "string" && item.text.trim()) {
+              translationsMap[item.lang.toLowerCase().slice(0, 2)] = item.text.trim();
+            }
+          }
+          return { original: (parsed.original || "").trim(), translationsMap };
+        }
+      }
+      throw new Error(lastErr);
+    }
+
+    // Запрос к Gemini с таймаутом 25 секунд на запрос и чтение ответа
+    async function geminiPost(modelName, bodyObj, timeoutMs = 25000) {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), timeoutMs);
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(activeApiKey)}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyObj), signal: ctl.signal }
+        );
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data };
+      } catch (e) {
+        return { ok: false, status: 0, data: {}, netErr: e && e.name === "AbortError" ? "Таймаут запроса к Google" : "Нет связи: " + ((e && e.message) || e) };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    // Кэш синтезированной речи
+    let lastTtsError = "";
+    const ttsCache = new Map();
+    const TTS_CACHE_MAX = 120;
+    async function synthesizeGeminiTts(textToSpeak) {
+      const cacheKey = textToSpeak;
+      if (ttsCache.has(cacheKey)) return ttsCache.get(cacheKey);
+      const __pcm = await __synthesizeGeminiTtsUncached(textToSpeak);
+      if (__pcm && __pcm.length > 0) {
+        if (ttsCache.size >= TTS_CACHE_MAX) ttsCache.delete(ttsCache.keys().next().value);
+        ttsCache.set(cacheKey, __pcm);
+      }
+      return __pcm;
+    }
+
+    async function __synthesizeGeminiTtsUncached(textToSpeak) {
+      lastTtsError = "";
+      for (const ttsModel of TTS_MODELS) {
+        const r = await geminiPost(ttsModel, {
+          contents: [{ parts: [{ text: textToSpeak }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
+            }
+          }
+        }, 20000);
+
+        if (!r.ok) {
+          lastTtsError = ttsModel + ": " + (r.netErr || (r.data.error && r.data.error.message) || ("HTTP " + r.status));
+          console.warn("TTS error:", lastTtsError);
+          continue;
+        }
+
+        try {
+          const parts = r.data?.candidates?.[0]?.content?.parts || [];
+          for (const p of parts) {
+            if (p.inlineData && p.inlineData.data) {
+              const pcm = base64ToInt16(p.inlineData.data, p.inlineData.mimeType || "");
+              if (pcm && pcm.length > 0) return fadeEdges(pcm);
+            }
+          }
+          lastTtsError = ttsModel + ": пустой ответ без аудио";
+        } catch (e) {
+          lastTtsError = ttsModel + ": " + ((e && e.message) || e);
+          console.warn("TTS decode error:", lastTtsError);
+        }
+      }
+      return null;
+    }
+
+    function speakBrowserTts(text, bcp47OrCode) {
+      try {
+        if (typeof speechSynthesis === "undefined") return;
+        const utter = new SpeechSynthesisUtterance(text);
+        if (bcp47OrCode && bcp47OrCode.includes("-")) {
+          utter.lang = bcp47OrCode;
+        } else if (LANGUAGES[bcp47OrCode]) {
+          utter.lang = LANGUAGES[bcp47OrCode].bcp47;
+        } else {
+          utter.lang = getL2().bcp47;
+        }
+        utter.rate = 1.0;
+        speechSynthesis.speak(utter);
+      } catch (e) {}
+    }
+
+    // ================= САМОПРОВЕРКА ПЕРЕД ВСТРЕЧЕЙ =================
+    const SELF_CHECK_MODELS = TRANSLATION_MODELS.map(m => m.name);
+    const THAI_RE = /[฀-๿]/;
+
+    function selfCheckSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function selfCheckTextModel(modelName, key) {
+      const L2 = getL2();
+      const body = {
+        contents: [{ parts: [{ text: `Переведи на ${L2.nameAcc} одной фразой. Верни только перевод. Фраза: Добрый день, рад вас видеть.` }] }],
+        generationConfig: { temperature: 0.0 }
+      };
+      if (modelName.startsWith("gemini-2.5")) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(key)}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+        );
+        if (!res.ok) {
+          const ej = await res.json().catch(() => ({}));
+          const m = (ej.error && ej.error.message) ? ej.error.message : "";
+          return { ok: false, msg: "HTTP " + res.status + " " + m.slice(0, 110) };
+        }
+        const data = await res.json();
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const text = parts.filter(x => !x.thought && typeof x.text === "string").map(x => x.text).join("").trim();
+        if (text.length > 0 && (L2.code !== "th" || THAI_RE.test(text))) {
+          return { ok: true, msg: text.slice(0, 60) };
+        }
+        return { ok: false, msg: "Пустой или некорректный ответ модели" };
+      } catch (e) {
+        return { ok: false, msg: "Нет связи: " + (e.message || e) };
+      }
+    }
+
+    function selfCheckPeer() {
+      return new Promise(resolve => {
+        let done = false;
+        let p = null;
+        const fin = (ok, msg) => {
+          if (done) return;
+          done = true;
+          try { if (p) p.destroy(); } catch (e) {}
+          resolve({ ok, msg });
+        };
+        try {
+          p = new Peer();
+          p.on("open", () => fin(true, "Сервер соединения отвечает"));
+          p.on("error", e => fin(false, "Ошибка: " + (e.type || e.message || e)));
+        } catch (e) {
+          fin(false, String(e.message || e));
+        }
+        setTimeout(() => fin(false, "Нет ответа за 8 секунд"), 8000);
+      });
+    }
+
+    async function selfCheckRecord(seconds) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false }
+      });
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      try { if (ctx.state === "suspended") await ctx.resume(); } catch (e) {}
+      const src = ctx.createMediaStreamSource(stream);
+      const node = ctx.createScriptProcessor(2048, 1, 1);
+      const mute = ctx.createGain();
+      mute.gain.value = 0;
+      const chunks = [];
+      node.onaudioprocess = (e) => {
+        chunks.push(downsampleTo16k(e.inputBuffer.getChannelData(0), ctx.sampleRate));
+      };
+      src.connect(node);
+      node.connect(mute);
+      mute.connect(ctx.destination);
+      await selfCheckSleep(seconds * 1000);
+      try { node.disconnect(); mute.disconnect(); src.disconnect(); } catch (e) {}
+      stream.getTracks().forEach(tr => tr.stop());
+      try { await ctx.close(); } catch (e) {}
+      return mergeInt16Chunks(chunks);
+    }
+
+    function selfCheckDb(rms) {
+      if (!rms || rms <= 0) return -99;
+      return Math.round(20 * Math.log10(rms));
+    }
+
+    async function runSelfCheck() {
+      const L1 = getL1();
+      const L2 = getL2();
+      const btn = document.getElementById("selfCheckBtn");
+      const box = document.getElementById("selfCheckBox");
+      box.innerHTML = "";
+      box.classList.remove("hidden");
+      btn.disabled = true;
+      btn.classList.add("opacity-60");
+
+      const icons = { ok: "✅", warn: "⚠️", fail: "❌", info: "ℹ️", run: "⏳" };
+      const counts = { ok: 0, warn: 0, fail: 0 };
+      function addRow(status, text) {
+        const row = document.createElement("div");
+        row.textContent = icons[status] + " " + text;
+        box.appendChild(row);
+        if (counts[status] !== undefined) counts[status]++;
+        return row;
+      }
+      function setRow(row, status, text) {
+        row.textContent = icons[status] + " " + text;
+        if (counts[status] !== undefined) counts[status]++;
+      }
+
+      try {
+        if (navigator.onLine) addRow("ok", "Интернет есть");
+        else addRow("fail", "Нет интернета");
+        if ("wakeLock" in navigator) addRow("ok", "Экран можно держать включённым");
+        else addRow("warn", "Браузер не умеет держать экран включённым. Отключи автоблокировку в настройках телефона");
+
+        const key = (activeApiKey || apiKeyInput.value || "").trim();
+        if (!key.startsWith("AIza")) {
+          addRow("fail", "Ключ Gemini не введён или неверный. Дальше проверять нечего");
+          return;
+        }
+        activeApiKey = key;
+
+        let anyModelOk = false;
+        for (let i = 0; i < SELF_CHECK_MODELS.length; i++) {
+          const name = SELF_CHECK_MODELS[i];
+          const row = addRow("run", "Модель " + name + "...");
+          const r = await selfCheckTextModel(name, key);
+          if (r.ok) {
+            anyModelOk = true;
+            setRow(row, "ok", "Модель " + name + " отвечает: " + r.msg);
+          } else {
+            setRow(row, "warn", "Модель " + name + " не ответила: " + r.msg + (i === 0 ? ". Приложение возьмёт запасную" : ". Запасная модель недоступна"));
+          }
+        }
+        if (!anyModelOk) {
+          addRow("fail", "Ни одна модель перевода не работает. Проверь ключ, биллинг и лимиты в Google Cloud");
+          return;
+        }
+
+        const samplePhrase = (L2.warmPhrases && L2.warmPhrases[0]) ? L2.warmPhrases[0] : "Hello";
+        const ttsRow = addRow("run", `Озвучка (${L2.name})...`);
+        const pcm24 = await synthesizeGeminiTts(samplePhrase);
+        if (pcm24 && pcm24.length > 0) {
+          setRow(ttsRow, "ok", "Озвучка Gemini работает (" + (pcm24.length / 24000).toFixed(1) + " сек звука)");
+        } else {
+          setRow(ttsRow, "warn", "Озвучка Gemini не ответила (" + (lastTtsError || "причина неизвестна").slice(0, 140) + "). Приложение возьмёт системный голос браузера");
+        }
+
+        const peerRow = addRow("run", "Сервер связи телефонов...");
+        const pr = await selfCheckPeer();
+        setRow(peerRow, pr.ok ? "ok" : "fail", "Связь телефонов: " + pr.msg);
+        addRow("info", "Связь двух телефонов проверь вживую: открой гостевую ссылку на втором телефоне и переведи одну фразу");
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          addRow("fail", "Браузер не даёт доступ к микрофону");
+          return;
+        }
+        const silRow = addRow("run", "Молчи 3 секунды, идёт запись тишины...");
+        let silPcm = null;
+        try {
+          silPcm = await selfCheckRecord(3);
+        } catch (e) {
+          setRow(silRow, "fail", "Нет доступа к микрофону: " + (e.message || e));
+          return;
+        }
+        const silStats = calculatePcmStats(silPcm);
+        const silRms = silStats.rms;
+        const silDb = selfCheckDb(silRms);
+        const gateBlocks = (silRms < 0.003 || silStats.speechFrames < 10);
+        let silText = "Шум комнаты " + silDb + " дБ. ";
+        let silStatus = silDb > -40 ? "warn" : "ok";
+        if (silDb > -40) silText += "Шумно. Найди комнату тише. ";
+        try {
+          const rs = await transcribeAndTranslateWav(encodeWavBase64(normalizeAudioPcm16(silPcm), 16000), 3.0);
+          const orig = ((rs && rs.original) || "").trim();
+          if (orig) {
+            silStatus = "fail";
+            silText += "Модель выдумала текст на тишине: " + orig.slice(0, 80);
+          } else {
+            silText += gateBlocks ? "Тишина отсеивается до отправки в модель." : "Модель на тишине вернула пустой ответ.";
+          }
+        } catch (e) {
+          silStatus = "fail";
+          silText += "Ошибка проверки: " + (e.message || e);
+        }
+        setRow(silRow, silStatus, silText);
+
+        const spRow = addRow("run", `Скажи фразу на выбранном языке (${L1.name}): идёт запись 4 секунды...`);
+        let spPcm = null;
+        try {
+          spPcm = await selfCheckRecord(4);
+        } catch (e) {
+          setRow(spRow, "fail", "Нет доступа к микрофону: " + (e.message || e));
+          return;
+        }
+        const spStats = calculatePcmStats(spPcm);
+        const spRms = spStats.rms;
+        const spFrames = spStats.speechFrames;
+        if (spRms < 0.003 || spFrames < 10) {
+          setRow(spRow, "fail", "Голос не слышен (" + selfCheckDb(spRms) + " дБ). Говори ближе и громче. Это порог, ниже которого приложение отсеивает речь");
+        } else {
+          try {
+            const rr = await transcribeAndTranslateWav(encodeWavBase64(normalizeAudioPcm16(spPcm), 16000), 4.0);
+            const o = ((rr && rr.original) || "").trim();
+            const tr = ((rr && rr.translation) || "").trim();
+            if (!o) {
+              setRow(spRow, "fail", "Голос слышен, но модель не распознала речь");
+            } else if (!tr) {
+              setRow(spRow, "warn", "Услышано: «" + o.slice(0, 80) + "». Перевода нет");
+            } else {
+              setRow(spRow, "ok", "Услышано: «" + o.slice(0, 80) + "». Перевод: " + tr.slice(0, 80) + ". Сверь с тем, что ты сказал");
+            }
+          } catch (e) {
+            setRow(spRow, "fail", "Ошибка проверки речи: " + (e.message || e));
+          }
+        }
+      } catch (e) {
+        addRow("fail", "Сбой самопроверки: " + (e.message || e));
+      } finally {
+        const sum = document.createElement("div");
+        sum.className = "mt-1 pt-2 border-t border-slate-700 font-semibold";
+        if (counts.fail > 0) sum.textContent = "Итог: есть ошибки (" + counts.fail + "). Исправь их до встречи";
+        else if (counts.warn > 0) sum.textContent = "Итог: работает, есть замечания (" + counts.warn + ")";
+        else sum.textContent = "Итог: всё готово";
+        box.appendChild(sum);
+        btn.disabled = false;
+        btn.classList.remove("opacity-60");
+      }
+    }
+    document.getElementById("selfCheckBtn").addEventListener("click", runSelfCheck);
+
+    // ================= ПАРАЛЛЕЛЬНАЯ ОБРАБОТКА БЕЗ ПОТЕРИ ВОПРОСОВ =================
+    async function processCompleteTurn(fullPcm16, speakerSide, meta = {}) {
+      if (meetingStopped || !activeApiKey) return;
+
+      const turnStartPerf = performance.now();
+      const L1 = getL1();
+      const effectiveL2 = (meta.guestLang && LANGUAGES[meta.guestLang]) ? LANGUAGES[meta.guestLang] : getL2();
+      const stats = calculatePcmStats(fullPcm16);
+
+      if (stats.rms < 0.003 || stats.speechFrames < 10) {
+        if (meta.peerId) {
+          sendToGuest(meta.peerId, {
+            type: "STATUS_SYNC",
+            mode: "warn",
+            text: `⚠️ ${effectiveL2.ui.unrecognized}`,
+            autoHideMs: 4500
+          });
+        } else {
+          setBottomStatus(
+            "warn",
+            `⚠️ Речь не опознана (слишком тихо). Пожалуйста, повторите (${effectiveL2.ui.unrecognized})`,
+            !groupMode,
+            4500
+          );
+        }
+        return;
+      }
+
+      inFlightTurnsCount++;
+
+      // Прерываем текущую озвучку ТОЛЬКО когда ведущий/сам пользователь начинает новую реплику,
+      // но НИКОГДА не обрываем вопросы туристов, пришедшие одновременно!
+      if (speakerSide === "host") {
+        stopCurrentPlayback();
+      }
+
+      if (!meta.peerId) {
+        const loadingLabel = inFlightTurnsCount > 1
+          ? `Обрабатываем реплики (${inFlightTurnsCount})...`
+          : `Речь принята, идёт перевод... (${effectiveL2.ui.translating})`;
+        setBottomStatus("loading", loadingLabel, !groupMode, 0);
+      } else {
+        sendToGuest(meta.peerId, {
+          type: "STATUS_SYNC",
+          mode: "loading",
+          text: effectiveL2.ui.translating,
+          autoHideMs: 0
+        });
+      }
+
+      connBadge.textContent = inFlightTurnsCount > 1
+        ? `⏳ Переводим (${inFlightTurnsCount} в работе)...`
+        : "⏳ Переводим фразу...";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300";
+
+      try {
+        const gatedPcm = noiseGatePcm16(fullPcm16);
+        if (gatedPcm.length < 2400) {
+          if (meta.peerId) {
+            sendToGuest(meta.peerId, {
+              type: "STATUS_SYNC",
+              mode: "warn",
+              text: `⚠️ ${effectiveL2.ui.unrecognized}`,
+              autoHideMs: 4500
+            });
+          } else {
+            setBottomStatus(
+              "warn",
+              `⚠️ Речь не опознана (тишина). Повторите (${effectiveL2.ui.unrecognized})`,
+              !groupMode,
+              4500
+            );
+          }
+          return;
+        }
+
+        const normalizedPcm = normalizeAudioPcm16(gatedPcm);
+        const wavB64 = encodeWavBase64(normalizedPcm, 16000);
+        const gatedDurationSec = gatedPcm.length / 16000;
+
+        // ===== СЦЕНАРИЙ А: ГРУППОВОЙ РЕЖИМ / КВЕСТ (ГИД ГОВОРИТ СРАЗУ ВСЕМ ГОСТЯМ НА РАЗНЫХ ЯЗЫКАХ) =====
+        if (role === "host" && groupMode && speakerSide === "host") {
+          const activeGuests = [...guestConnections.entries()].filter(([, g]) => g.conn && g.conn.open);
+          const uniqueTargetCodes = activeGuests.length > 0
+            ? [...new Set(activeGuests.map(([, g]) => g.lang || lang2))]
+            : [lang2];
+
+          const multiRes = await transcribeAndTranslateMultiWav(wavB64, lang1, uniqueTargetCodes, gatedDurationSec);
+          if (meetingStopped) return;
+
+          const orig = multiRes.original;
+          const tMap = multiRes.translationsMap || {};
+          if (!orig || Object.keys(tMap).length === 0) {
+            setBottomStatus("warn", "⚠️ Речь не опознана. Повторите фразу, пожалуйста", false, 4500);
+            return;
+          }
+
+          const hostSpeakerLabel = `${L1.flag} Гид (${L1.code.toUpperCase()})`;
+          const summaryTranslations = Object.entries(tMap)
+            .map(([code, txt]) => `${(LANGUAGES[code] || getL2()).flag} ${txt}`)
+            .join("\n");
+
+          appendChatBubble({
+            side: "right",
+            sender: hostSpeakerLabel,
+            original: orig,
+            translation: summaryTranslations,
+            isSelf: true
+          }, false);
+
+          // Каждому гостю отправляем единую карточку чата на его родном языке
+          for (const [pId, gEntry] of activeGuests) {
+            const gCode = gEntry.lang || lang2;
+            const gText = tMap[gCode] || orig;
+            if (gText) {
+              sendToGuest(pId, {
+                type: "CHAT_BUBBLE_SYNC",
+                sender: hostSpeakerLabel,
+                original: orig,
+                translation: gText
+              });
+            }
+          }
+
+          connBadge.textContent = "🔊 Рассылаем перевод группе...";
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+
+          await Promise.all(Object.entries(tMap).map(async ([tCode, tText]) => {
+            const tObj = LANGUAGES[tCode] || getL2();
+            if (fastBrowserTtsMode) {
+              if (activeGuests.length === 0) {
+                speakBrowserTts(tText, tObj.bcp47);
+              } else {
+                broadcastToAllGuests(
+                  { type: "AI_BROWSER_TTS_FOR_GUEST", text: tText, lang: tObj.bcp47 },
+                  (g) => (g.lang || lang2) === tCode
+                );
+              }
+              return;
+            }
+
+            const pcm24 = await synthesizeGeminiTts(tText);
+            if (meetingStopped) return;
+
+            if (pcm24 && pcm24.length > 0) {
+              if (activeGuests.length === 0) {
+                playPcm24k(pcm24, true);
+              } else {
+                playPcm24k(pcm24, false);
+                const wavBuffer = buildWavArrayBuffer(pcm24, 24000);
+                broadcastToAllGuests(
+                  { type: "AI_WAV_FOR_GUEST", wav: wavBuffer },
+                  (g) => (g.lang || lang2) === tCode
+                );
+              }
+            } else {
+              if (activeGuests.length === 0) {
+                speakBrowserTts(tText, tObj.bcp47);
+              } else {
+                broadcastToAllGuests(
+                  { type: "AI_BROWSER_TTS_FOR_GUEST", text: tText, lang: tObj.bcp47 },
+                  (g) => (g.lang || lang2) === tCode
+                );
+              }
+            }
+          }));
+
+          const elapsedSec = ((performance.now() - turnStartPerf) / 1000).toFixed(1);
+          setBottomStatus("hidden", "", false, 0);
+          connBadge.textContent = `🟢 Группе (${Object.keys(tMap).length} яз.) • ${elapsedSec}с`;
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+          return;
+        }
+
+        // ===== СЦЕНАРИЙ Б: ДИАЛОГ 1-НА-1 ИЛИ ВОПРОС ТУРИСТА ГИДУ =====
+        const result = await transcribeAndTranslateWav(wavB64, gatedDurationSec, lang1, effectiveL2.code);
+        if (meetingStopped) return;
+
+        const originalText = (result.original || "").trim();
+        const translationText = (result.translation || "").trim();
+        const rawSourceLang = (result.source_lang || "").toLowerCase().slice(0, 2);
+
+        if (!originalText || !translationText) {
+          if (meta.peerId) {
+            sendToGuest(meta.peerId, {
+              type: "STATUS_SYNC",
+              mode: "warn",
+              text: `⚠️ ${effectiveL2.ui.unrecognized}`,
+              autoHideMs: 5000
+            });
+          } else {
+            setBottomStatus(
+              "warn",
+              `⚠️ Речь не опознана. Пожалуйста, повторите ещё раз (${effectiveL2.ui.unrecognized})`,
+              !groupMode,
+              5000
+            );
+          }
+          return;
+        }
+
+        const isSourceL2 = rawSourceLang === effectiveL2.code || (effectiveL2.code === "th" && THAI_RE.test(originalText));
+        const srcLangObj = isSourceL2 ? effectiveL2 : L1;
+        const tgtLangObj = isSourceL2 ? L1 : effectiveL2;
+
+        // Если это гость со своего телефона в группе: показываем ему его вопрос в чате и отправляем готовую карточку + звук гиду!
+        if (role === "guest") {
+          const myBadge = myAssignedGuestNum
+            ? `${srcLangObj.flag} Вы (#${myAssignedGuestNum}${myGuestName ? " • " + myGuestName : ""})`
+            : `${srcLangObj.flag} Вы (${srcLangObj.code.toUpperCase()})`;
+
+          appendChatBubble({
+            side: "right",
+            sender: myBadge,
+            original: originalText,
+            translation: `${tgtLangObj.flag} ${translationText} (${effectiveL2.ui.sentToGuide})`,
+            isSelf: true
+          }, !groupMode);
+
+          if (fastBrowserTtsMode) {
+            if (conn && conn.open) {
+              conn.send({
+                type: "GUEST_DELIVERED_TURN",
+                guestNum: myAssignedGuestNum,
+                guestName: myGuestName,
+                lang: lang2,
+                original: originalText,
+                translation: translationText,
+                bcp47: tgtLangObj.bcp47,
+                pcm: null
+              });
+            }
+          } else {
+            setBottomStatus("loading", `🔊 ${effectiveL2.ui.speaking}`, false, 0);
+            const pcm24 = await synthesizeGeminiTts(translationText);
+            if (conn && conn.open) {
+              conn.send({
+                type: "GUEST_DELIVERED_TURN",
+                guestNum: myAssignedGuestNum,
+                guestName: myGuestName,
+                lang: lang2,
+                original: originalText,
+                translation: translationText,
+                bcp47: tgtLangObj.bcp47,
+                pcm: (pcm24 && pcm24.length > 0) ? pcm24.buffer : null
+              });
+            }
+          }
+
+          const elapsedSec = ((performance.now() - turnStartPerf) / 1000).toFixed(1);
+          setBottomStatus("hidden", "", false, 0);
+          connBadge.textContent = `🟢 Отправлено • ${elapsedSec}с`;
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+          return;
+        }
+
+        // Сторона хоста (организатора / гида)
+        let senderLabel = "";
+        const isSelfMsg = (speakerSide === "host");
+        if (singlePhoneMode) {
+          senderLabel = `${srcLangObj.flag} Реплика (${srcLangObj.code.toUpperCase()})`;
+        } else if (speakerSide === "guest") {
+          senderLabel = formatGuestDisplayName(meta.guestNum, meta.guestName, srcLangObj.code) + ` (${srcLangObj.code.toUpperCase()})`;
+        } else {
+          senderLabel = `${srcLangObj.flag} Вы (${srcLangObj.code.toUpperCase()})`;
+        }
+
+        appendChatBubble({
+          side: isSelfMsg ? "right" : "left",
+          sender: senderLabel,
+          original: originalText,
+          translation: `${tgtLangObj.flag} ${translationText}`,
+          isSelf: isSelfMsg
+        }, !groupMode);
+
+        // Если вопрос пришёл от гостя (через серверный фолбэк хоста), дублируем ему подтверждение в его чат
+        if (meta.peerId) {
+          sendToGuest(meta.peerId, {
+            type: "CHAT_BUBBLE_SYNC",
+            sender: `${srcLangObj.flag} Вы`,
+            original: originalText,
+            translation: `${tgtLangObj.flag} ${translationText} (${effectiveL2.ui.sentToGuide})`
+          });
+          sendToGuest(meta.peerId, { type: "STATUS_SYNC", mode: "hidden", text: "", autoHideMs: 0 });
+        }
+
+        if (fastBrowserTtsMode) {
+          const bcpLang = tgtLangObj.bcp47;
+          if (speakerSide === "guest" || singlePhoneMode || !hasAnyOpenGuest()) {
+            speakBrowserTts(translationText, bcpLang);
+          } else {
+            broadcastToAllGuests({ type: "AI_BROWSER_TTS_FOR_GUEST", text: translationText, lang: bcpLang });
+          }
+
+          const elapsedSec = ((performance.now() - turnStartPerf) / 1000).toFixed(1);
+          setBottomStatus("hidden", "", !groupMode, 0);
+          connBadge.textContent = `🟢 Готов • ${elapsedSec}с`;
+          connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+          return;
+        }
+
+        if (!meta.peerId) {
+          setBottomStatus("loading", `🔊 Озвучиваем перевод... (${effectiveL2.ui.speaking})`, !groupMode, 0);
+        }
+        connBadge.textContent = "🔊 Озвучиваем перевод...";
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+
+        const pcm24 = await synthesizeGeminiTts(translationText);
+        if (meetingStopped) return;
+
+        if (pcm24 && pcm24.length > 0) {
+          if (speakerSide === "guest" || singlePhoneMode) {
+            playPcm24k(pcm24, true);
+          } else {
+            playPcm24k(pcm24, false);
+            if (hasAnyOpenGuest()) {
+              const wavBuffer = buildWavArrayBuffer(pcm24, 24000);
+              broadcastToAllGuests({ type: "AI_WAV_FOR_GUEST", wav: wavBuffer });
+            } else {
+              playPcm24k(pcm24, true);
+            }
+          }
+        } else {
+          const bcpLang = tgtLangObj.bcp47;
+          if (speakerSide === "guest" || singlePhoneMode || !hasAnyOpenGuest()) {
+            speakBrowserTts(translationText, bcpLang);
+          } else {
+            broadcastToAllGuests({ type: "AI_BROWSER_TTS_FOR_GUEST", text: translationText, lang: bcpLang });
+          }
+        }
+
+        const elapsedSec = ((performance.now() - turnStartPerf) / 1000).toFixed(1);
+        if (!meta.peerId) {
+          setBottomStatus("hidden", "", !groupMode, 0);
+        }
+        connBadge.textContent = `🟢 Готов • ${elapsedSec}с`;
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300";
+      } catch (err) {
+        console.error("Translation turn error:", err);
+        if (meta.peerId) {
+          sendToGuest(meta.peerId, {
+            type: "STATUS_SYNC",
+            mode: "error",
+            text: "🔴 Ошибка связи, повторите вопрос",
+            autoHideMs: 5000
+          });
+        } else {
+          setBottomStatus(
+            "error",
+            "🔴 Ошибка связи с переводчиком. Пожалуйста, повторите фразу",
+            !groupMode,
+            5000
+          );
+        }
+        connBadge.textContent = "🔴 Ошибка: " + (err.message || "сбой сети");
+        connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 truncate max-w-[240px]";
+      } finally {
+        inFlightTurnsCount = Math.max(0, inFlightTurnsCount - 1);
+        if (inFlightTurnsCount === 0 && !meetingStopped) {
+          setBottomStatus("hidden", "", false, 0);
+        }
+      }
+    }
+
+    // ================= ЗАХВАТ РЕЧИ ПРИ УДЕРЖАНИИ КНОПКИ =================
+    function stopCurrentPlayback() {
+      for (const src of activeOutputSources) {
+        try {
+          const t0 = audioCtx.currentTime;
+          if (src._outGain) {
+            src._outGain.gain.cancelScheduledValues(t0);
+            src._outGain.gain.setValueAtTime(src._outGain.gain.value, t0);
+            src._outGain.gain.linearRampToValueAtTime(0, t0 + 0.02);
+            src.stop(t0 + 0.03);
+          } else {
+            src.stop();
+          }
+        } catch (e) {}
+      }
+      activeOutputSources = [];
+      queuedAudioEnds = [];
+      updateAudioQueueBadge();
+      if (typeof speechSynthesis !== "undefined" && (speechSynthesis.speaking || speechSynthesis.pending)) {
+        try { speechSynthesis.cancel(); } catch (e) {}
+      }
+      if (audioCtx) {
+        nextPlayTime = audioCtx.currentTime;
+      }
+    }
+
+    function mergeInt16Chunks(chunks) {
+      let totalLen = 0;
+      for (const c of chunks) totalLen += c.length;
+      const merged = new Int16Array(totalLen);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+      return merged;
+    }
+
+    function resetPttButtonAppearance() {
+      const L1 = getL1();
+      const L2 = getL2();
+      pttBtn.classList.remove("ptt-active");
+      pttBtn.className = "ptt-btn w-full h-24 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer";
+      if (role === "guest") {
+        pttLabel.textContent = L2.ui.pttIdle;
+        pttSub.textContent = L2.ui.pttSub;
+      } else if (groupMode) {
+        pttLabel.textContent = `🎙 ГОВОРИТЬ ГРУППЕ (${L1.flag} ➔ 👥)`;
+        pttSub.textContent = "Удерживайте, пока говорите → отпустите для перевода всем";
+      } else {
+        pttLabel.textContent = `🎙 УДЕРЖИВАЙТЕ ДЛЯ РЕЧИ (${L1.flag} ⇄ ${L2.flag})`;
+        pttSub.textContent = "Говорите сколько нужно → отпустите для перевода";
+      }
+    }
+
+    async function startSpeaking() {
+      if (meetingStopped) return;
+      clearTimeout(releaseTailTimer);
+      pttReleaseIdx = -1;
+      setMicRecording(true);
+      if (isRecordingPTT) return;
+
+      const L2 = getL2();
+
+      try {
+        await initAudioEngine(true);
+        // Палец отпустили, пока браузер спрашивал микрофон: запись не начинаем
+        if (!pttHeld) {
+          setMicRecording(false);
+          return;
+        }
+        stopCurrentPlayback();
+        setBottomStatus("hidden", "", false, 0);
+
+        pttBufferedChunks = [];
+        isRecordingPTT = true;
+        setMicRecording(true);
+        pttStartTimestamp = Date.now();
+
+        pttBtn.classList.add("ptt-active");
+        pttBtn.className = "ptt-btn ptt-active w-full h-24 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-slate-950 font-extrabold text-lg shadow-xl flex flex-col items-center justify-center cursor-pointer";
+
+        if (role === "guest") {
+          pttLabel.textContent = `${L2.ui.pttRec} 0.0 ${L2.ui.secUnit}`;
+          pttSub.textContent = L2.ui.pttRecSub;
+        } else {
+          pttLabel.textContent = "🔴 ЗАПИСЬ РЕЧИ: 0.0 сек...";
+          pttSub.textContent = "AI ждёт, пока вы договорите и отпустите кнопку";
+        }
+
+        clearInterval(pttTimerInterval);
+        pttTimerInterval = setInterval(() => {
+          if (!isRecordingPTT) return;
+          const elapsed = ((Date.now() - pttStartTimestamp) / 1000).toFixed(1);
+          if (role === "guest") {
+            const curL2 = getL2();
+            pttLabel.textContent = `${curL2.ui.pttRec} ${elapsed} ${curL2.ui.secUnit}`;
+          } else {
+            pttLabel.textContent = `🔴 ЗАПИСЬ РЕЧИ: ${elapsed} сек...`;
+          }
+        }, 100);
+      } catch (err) {
+        alert("Микрофон заблокирован браузером. Нажмите на значок замка слева от адреса сайта вверху экрана и выберите «Микрофон: Разрешить».");
+      }
+    }
+
+    function stopSpeaking() {
+      if (!isRecordingPTT) return;
+      clearInterval(pttTimerInterval);
+      resetPttButtonAppearance();
+      setMicRecording(false);
+      if (pttReleaseIdx < 0) pttReleaseIdx = pttBufferedChunks.reduce((s, c) => s + c.length, 0);
+
+      clearTimeout(releaseTailTimer);
+      releaseTailTimer = setTimeout(() => {
+        isRecordingPTT = false;
+        micLevelBar.style.width = "0%";
+
+        const fullUtterance = trimTailBurst(mergeInt16Chunks(pttBufferedChunks), pttReleaseIdx);
+        pttReleaseIdx = -1;
+        pttBufferedChunks = [];
+
+        if (fullUtterance.length < 2400) {
+          setBottomStatus(
+            "warn",
+            `⚠️ Слишком короткое нажатие — удерживайте кнопку во время фразы (${getL2().ui.pttIdle})`,
+            false,
+            3500
+          );
+          return;
+        }
+
+        if (role === "host") {
+          processCompleteTurn(fullUtterance, "host");
+        } else if (conn && conn.open) {
+          if (activeApiKey) {
+            conn.send({ type: "GUEST_RAW_AUDIO_FOR_ARCHIVE", pcm: fullUtterance.buffer });
+            processCompleteTurn(fullUtterance, "guest", { guestLang: lang2 });
+          } else {
+            setBottomStatus(
+              "loading",
+              `Речь принята, идёт перевод... (${getL2().ui.translating})`,
+              false,
+              0
+            );
+            sendBufferedUtteranceToHost(fullUtterance);
+          }
+        } else {
+          setBottomStatus(
+            "error",
+            "🔴 Нет связи с главным телефоном — подождите пару секунд и повторите",
+            false,
+            4000
+          );
+        }
+      }, 250);
+    }
+
+    function sendBufferedUtteranceToHost(fullPcm16) {
+      if (!conn || !conn.open) return;
+      const CHUNK_SIZE = 16000;
+      for (let offset = 0; offset < fullPcm16.length; offset += CHUNK_SIZE) {
+        const slice = fullPcm16.slice(offset, Math.min(offset + CHUNK_SIZE, fullPcm16.length));
+        conn.send({ type: "GUEST_AUDIO_CHUNK", pcm: slice.buffer });
+      }
+      conn.send({ type: "GUEST_AUDIO_COMMIT", lang: lang2, name: myGuestName });
+    }
+
+    pttBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      pttHeld = true;
+      if (pttBtn.setPointerCapture && e.pointerId !== undefined) {
+        try { pttBtn.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      startSpeaking();
+    });
+    pttBtn.addEventListener("pointerup", (e) => { e.preventDefault(); pttHeld = false; stopSpeaking(); });
+    pttBtn.addEventListener("pointercancel", () => { pttHeld = false; stopSpeaking(); });
+
+    // ================= АУДИО УТИЛИТЫ И ОЧЕРЕДЬ ВОСПРОИЗВЕДЕНИЯ =================
+    function updateAudioQueueBadge() {
+      const badge = document.getElementById("audioQueueBadge");
+      if (!badge) return;
+      if (!audioCtx) {
+        badge.classList.add("hidden");
+        return;
+      }
+      const now = audioCtx.currentTime;
+      queuedAudioEnds = queuedAudioEnds.filter(t => t > now + 0.05);
+      if (queuedAudioEnds.length > 1) {
+        badge.textContent = `🔊 Озвучка в очереди: ${queuedAudioEnds.length}`;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+
+    function downsampleTo16k(buffer, sampleRate) {
+      if (sampleRate === 16000) {
+        const res = new Int16Array(buffer.length);
+        for (let i = 0; i < buffer.length; i++) res[i] = Math.max(-1, Math.min(1, buffer[i])) * 0x7FFF;
+        return res;
+      }
+      const ratio = sampleRate / 16000;
+      const newLength = Math.round(buffer.length / ratio);
+      const result = new Int16Array(newLength);
+      let offsetResult = 0;
+      let offsetBuffer = 0;
+      while (offsetResult < result.length) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+        let accum = 0, count = 0;
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+          accum += buffer[i];
+          count++;
+        }
+        const sample = count > 0 ? accum / count : 0;
+        result[offsetResult] = Math.max(-1, Math.min(1, sample)) * 0x7FFF;
+        offsetResult++;
+        offsetBuffer = nextOffsetBuffer;
+      }
+      return result;
+    }
+
+    function playPcm24k(int16Arr, playToLocalHeadphones) {
+      if (!audioCtx) return;
+      const float32 = new Float32Array(int16Arr.length);
+      for (let i = 0; i < int16Arr.length; i++) float32[i] = int16Arr[i] / 32768.0;
+
+      const audioBuf = audioCtx.createBuffer(1, float32.length, 24000);
+      audioBuf.getChannelData(0).set(float32);
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuf;
+
+      const outGain = audioCtx.createGain();
+      outGain.gain.value = (speakerMode && playToLocalHeadphones) ? 1.5 : 1.0;
+      source.connect(outGain);
+      let outTail = outGain;
+      if (speakerMode && playToLocalHeadphones) {
+        // усиление 1.5 без ограничителя даёт клиппинг и хрип на пиках озвучки
+        const limiter = audioCtx.createDynamicsCompressor();
+        limiter.threshold.value = -6;
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.002;
+        limiter.release.value = 0.15;
+        outGain.connect(limiter);
+        outTail = limiter;
+      }
+      if (playToLocalHeadphones) outTail.connect(audioCtx.destination);
+      if (mixerDest) outTail.connect(mixerDest);
+      source._outGain = outGain;
+
+      activeOutputSources.push(source);
+
+      const now = audioCtx.currentTime;
+      if (nextPlayTime < now) nextPlayTime = now;
+      const endTime = nextPlayTime + audioBuf.duration;
+      if (playToLocalHeadphones) {
+        queuedAudioEnds.push(endTime);
+        updateAudioQueueBadge();
+      }
+
+      source.onended = () => {
+        const idx = activeOutputSources.indexOf(source);
+        if (idx !== -1) activeOutputSources.splice(idx, 1);
+        updateAudioQueueBadge();
+      };
+
+      source.start(nextPlayTime);
+      nextPlayTime = endTime;
+    }
+
+    function playIncomingGuestToMixer(int16Arr) {
+      if (!audioCtx || !mixerDest) return;
+      int16Arr = fadeEdges(int16Arr);
+      const float32 = new Float32Array(int16Arr.length);
+      for (let i = 0; i < int16Arr.length; i++) float32[i] = int16Arr[i] / 32768.0;
+      const audioBuf = audioCtx.createBuffer(1, float32.length, 16000);
+      audioBuf.getChannelData(0).set(float32);
+      const src = audioCtx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(mixerDest);
+
+      const now = audioCtx.currentTime;
+      if (nextGuestMixTime < now) nextGuestMixTime = now;
+      src.start(nextGuestMixTime);
+      nextGuestMixTime += audioBuf.duration;
+    }
+
+    function base64ToInt16(b64, mimeType = "") {
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+      const readTag = (offset) =>
+        String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+
+      const looksLikeWav =
+        /audio\/(wav|x-wav)/i.test(mimeType) ||
+        (bytes.length >= 12 && readTag(0) === "RIFF" && readTag(8) === "WAVE");
+
+      if (!looksLikeWav) {
+        if (bytes.length < 2 || bytes.length % 2 !== 0) {
+          throw new Error("Некорректный размер PCM-аудио");
+        }
+        return new Int16Array(bytes.buffer);
+      }
+
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      let formatCode = 0;
+      let channels = 0;
+      let sampleRate = 0;
+      let bitsPerSample = 0;
+      let dataOffset = -1;
+      let dataLength = 0;
+
+      for (let offset = 12; offset + 8 <= view.byteLength;) {
+        const chunkId = readTag(offset);
+        const chunkSize = view.getUint32(offset + 4, true);
+        const chunkStart = offset + 8;
+        const chunkEnd = chunkStart + chunkSize;
+        if (chunkEnd > view.byteLength) break;
+
+        if (chunkId === "fmt " && chunkSize >= 16) {
+          formatCode = view.getUint16(chunkStart, true);
+          channels = view.getUint16(chunkStart + 2, true);
+          sampleRate = view.getUint32(chunkStart + 4, true);
+          bitsPerSample = view.getUint16(chunkStart + 14, true);
+
+          if (formatCode === 0xFFFE && chunkSize >= 40) {
+            formatCode = view.getUint16(chunkStart + 24, true);
+          }
+        } else if (chunkId === "data" && dataOffset < 0) {
+          dataOffset = chunkStart;
+          dataLength = chunkSize;
+        }
+
+        offset = chunkEnd + (chunkSize & 1);
+      }
+
+      if (dataOffset < 0 || formatCode !== 1 || bitsPerSample !== 16 || channels < 1) {
+        throw new Error("Gemini вернул неподдерживаемый WAV-формат");
+      }
+      if (sampleRate !== 24000) {
+        throw new Error("Ожидалось 24 кГц, получено " + sampleRate + " Гц");
+      }
+
+      const usableBytes = dataLength - (dataLength % (2 * channels));
+      const sampleCount = usableBytes / 2;
+      const source = new Int16Array(
+        bytes.buffer.slice(bytes.byteOffset + dataOffset, bytes.byteOffset + dataOffset + usableBytes)
+      );
+
+      if (channels === 1) return source;
+
+      const mono = new Int16Array(sampleCount / channels);
+      for (let i = 0; i < mono.length; i++) {
+        let sum = 0;
+        for (let ch = 0; ch < channels; ch++) sum += source[i * channels + ch];
+        mono[i] = Math.max(-32768, Math.min(32767, Math.round(sum / channels)));
+      }
+      return mono;
+    }
+
+    // ================= ЕДИНЫЙ ЧАТ-ИНТЕРФЕЙС И ЭКСПОРТ =================
+    function escapeHTML(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
+    function renderChatBubbleDOM(item) {
+      const div = document.createElement("div");
+      const isSelf = Boolean(item.isSelf);
+
+      if (isSelf) {
+        div.className = "ml-auto max-w-[88%] bg-emerald-950/75 border border-emerald-500/35 rounded-2xl rounded-tr-sm px-3.5 py-2.5 shadow-sm";
+      } else {
+        div.className = "mr-auto max-w-[88%] bg-slate-900/95 border border-slate-700/80 rounded-2xl rounded-tl-sm px-3.5 py-2.5 shadow-sm";
+      }
+
+      const senderName = item.sender || item.speaker || "Участник";
+      const origText = item.original || item.text || "";
+      const transText = item.translation || "";
+
+      const headerHtml = `<div class="flex items-center justify-between gap-3 text-[11px] mb-1">
+        <span class="${isSelf ? "text-emerald-300" : "text-sky-300"} font-semibold">${escapeHTML(senderName)}</span>
+        <span class="text-slate-500 font-mono text-[10px]">${escapeHTML(item.time || "")}</span>
+      </div>`;
+
+      const origHtml = `<div class="text-slate-100 leading-snug whitespace-pre-line">${escapeHTML(origText)}</div>`;
+      const transHtml = transText
+        ? `<div class="mt-1.5 pt-1.5 border-t ${isSelf ? "border-emerald-500/20 text-emerald-200/95" : "border-slate-800 text-amber-200/95"} text-xs sm:text-sm leading-snug whitespace-pre-line">${escapeHTML(transText)}</div>`
+        : "";
+
+      div.innerHTML = headerHtml + origHtml + transHtml;
+      transcriptBox.appendChild(div);
+    }
+
+    function appendChatBubble(msgObj, broadcastToPeer) {
+      if (transcriptLog.length === 0) transcriptBox.innerHTML = "";
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const item = {
+        time: time,
+        side: msgObj.side || (msgObj.isSelf ? "right" : "left"),
+        sender: msgObj.sender || "Участник",
+        original: msgObj.original || "",
+        translation: msgObj.translation || "",
+        isSelf: Boolean(msgObj.isSelf)
+      };
+      transcriptLog.push(item);
+
+      renderChatBubbleDOM(item);
+      transcriptBox.scrollTop = transcriptBox.scrollHeight;
+
+      if (role === "host") {
+        savePersistentSession();
+        if (broadcastToPeer) {
+          broadcastToAllGuests({
+            type: "CHAT_BUBBLE_SYNC",
+            sender: item.sender,
+            original: item.original,
+            translation: item.translation
+          });
+        }
+      } else {
+        saveGuestTranscript();
+        if (broadcastToPeer && conn && conn.open) {
+          conn.send({
+            type: "CHAT_BUBBLE_SYNC",
+            sender: item.sender,
+            original: item.original,
+            translation: item.translation
+          });
+        }
+      }
+    }
+
+    function downloadTranscriptTxt() {
+      const content = transcriptLog.map((item) => {
+        const sender = item.sender || item.speaker || "";
+        const orig = item.original || item.text || "";
+        const trans = item.translation ? `\nПеревод: ${item.translation}` : "";
+        return `[${item.time}] ${sender}:\n${orig}${trans}\n`;
+      }).join("\n");
+      const blob = new Blob([content || "Чат пуст"], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      const tag = groupMode ? `${lang1.toUpperCase()}-GROUP` : `${lang1.toUpperCase()}-${lang2.toUpperCase()}`;
+      a.download = `chat-protocol-${tag}-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+    }
+
+    function releaseMicrophone() {
+      try {
+        if (scriptNode) scriptNode.disconnect();
+        if (muteGainNode) muteGainNode.disconnect();
+        if (micSourceNode) micSourceNode.disconnect();
+        if (micRecGain) micRecGain.disconnect();
+      } catch (e) {}
+      try {
+        if (micStream) micStream.getTracks().forEach((tr) => tr.stop());
+      } catch (e) {}
+      micStream = null;
+      micSourceNode = null;
+      micRecGain = null;
+      isRecordingPTT = false;
+    }
+
+    function finishMeetingAndShare() {
+      meetingStopped = true;
+      stopCurrentPlayback();
+      setBottomStatus("hidden", "", true, 0);
+      clearTimeout(peerReconnectTimer);
+      clearPersistentSession();
+
+      try {
+        history.replaceState(null, "", window.location.pathname);
+      } catch (e) {}
+
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+      releaseMicrophone();
+      connBadge.textContent = "🏁 Сессия завершена";
+      connBadge.className = "text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300";
+
+      if (N8N_WEBHOOK_URL && transcriptLog.length > 0) {
+        fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            meeting_date: new Date().toISOString(),
+            pair: groupMode ? `${lang1.toUpperCase()}-GROUP` : `${lang1.toUpperCase()}-${lang2.toUpperCase()}`,
+            transcript: transcriptLog
+          })
+        }).catch(() => {});
+      }
+    }
+
+    document.getElementById("downloadTxtBtn").addEventListener("click", downloadTranscriptTxt);
+    document.getElementById("downloadTxtBtn2").addEventListener("click", downloadTranscriptTxt);
+
+    document.getElementById("finishRecBtn").addEventListener("click", () => {
+      if (role === "host") {
+        finishMeetingAndShare();
+      } else if (conn && conn.open) {
+        conn.send({ type: "REQUEST_FINISH" });
+      }
+    });
+  </script>
+</body>
+</html>
